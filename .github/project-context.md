@@ -1,6 +1,8 @@
-# Quantum Sky Project 137 — Project Context
+# LinkScope — Project Context
 
 This document describes the software product and its functional requirements. The original assignment, including presentation and submission expectations, is retained in [the assignment brief](../docs/Quantum_Sky_Project_137_Software%20Engineering%20Assignment.md).
+
+LinkScope is an application within Project 137, a division of Quantum Sky.
 
 ## Product Goal
 
@@ -74,6 +76,12 @@ The merged baseline is expected to contain **37 nodes, 55 links, and 391 demands
 ## Scope Boundaries
 
 The deliverable is a first, small working network-analysis application. Keep implementation choices (including framework, internal architecture, and algorithms beyond the specified behavior) aligned with the requirements and avoid adding unrequested product scope. Assignment-specific presentation, AI workflow, repository submission, and follow-up session expectations are documented in the [assignment brief](../docs/Quantum_Sky_Project_137_Software%20Engineering%20Assignment.md).
+
+## Repository Scope and README
+
+Outside `./docs/` and `./.github/`, all project files—including the root `README.md`—are part of the production-level application scope. Treat application code and user-facing materials as production-quality deliverables, not scratch work or assignment-only artifacts.
+
+The README is for end users. Keep it focused on the product overview, implemented capabilities, and supported user-facing options. Describe options at a high level; do not put internal architecture, source file paths, environment variable names, development commands, or CI/CD implementation details there. Be accurate about what is and is not available, and document how to use the application once it is runnable. Keep development setup, architecture, exact configuration, validation commands, and release mechanics in `.github/project-context.md` and `.github/tasks/*.md`.
 
 ## Known Issues
 

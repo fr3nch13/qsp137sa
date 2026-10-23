@@ -41,6 +41,10 @@ It also supports devcontainers which I like using for the following reasons:
 - Its intended to be managed, updated and reviewed from the agent's perspective.
 - Think of it as the commonly used `MEMORY.md` for this specific project.
 
+## Agent's choices
+
+- I had the agent come up with the name of the project `LinkScope` after reminding it the context of the company name, project/division name, and purpose of the application.
+
 ## Issues
 
 - The SNDlib source files both return a 404 (intentional?)
