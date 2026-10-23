@@ -40,3 +40,8 @@ It also supports devcontainers which I like using for the following reasons:
 - While the other 2 files define how the agent should behave and work, this file holds the context of the specific project itself.
 - Its intended to be managed, updated and reviewed from the agent's perspective.
 - Think of it as the commonly used `MEMORY.md` for this specific project.
+
+## Issues
+
+- The SNDlib source files both return a 404 (intentional?)
+- The SNDlib website's TLS certificate's CommonName and SAN don't match the given hostname (also intentional?).
