@@ -10,7 +10,24 @@ The project is based on the `nobel-eu` network from the [Survivable Network Desi
 
 ## Run the current demonstration
 
-Install Docker and ensure it is running. If the container package is private, first authenticate Docker to `ghcr.io` using a GitHub account with access to the package and a credential with package-read permission. Never put credentials in this repository.
+Install Docker and ensure it is running.
+
+If the container package is private, sign Docker in to `ghcr.io` first. Your GitHub account must have access to the package. Use one of these options:
+
+- **GitHub CLI:** add the package-read scope to your login, then pass its token to Docker:
+
+  ```sh
+  gh auth refresh -h github.com -s read:packages
+  gh auth token | docker login ghcr.io -u "$(gh api user --jq .login)" --password-stdin
+  ```
+
+- **Personal access token:** create a [classic token](https://github.com/settings/tokens/new?scopes=read:packages) with the `read:packages` scope. Then run the following, replacing `YOUR_GITHUB_USERNAME`. The token is read without being shown on screen or saved in your shell history:
+
+  ```sh
+  read -rs GHCR_TOKEN && printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin; unset GHCR_TOKEN
+  ```
+
+Docker should print `Login Succeeded`. Run `docker logout ghcr.io` to remove the saved credential later. Never put credentials in this repository.
 
 Start the published stable image with one command:
 
