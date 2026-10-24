@@ -2,6 +2,8 @@
 
 This document describes the software product and its functional requirements. The original assignment, including presentation and submission expectations, is retained in [the assignment brief](../docs/Quantum_Sky_Project_137_Software%20Engineering%20Assignment.md).
 
+Presentation and interview preparation is tracked in [the interview preparation notes](../docs/slideshow/interview-preparation.md). Read and update that tracker when implementation status, production limitations, verification evidence, steering examples, or assignment clarifications change. It also contains the slide outline, panel-question log, demo checklist, and time record; it is not the final slide deck. Keep detailed interview material there rather than in the end-user README, and leave unverified findings or unrecorded time explicitly pending.
+
 LinkScope is an application within Project 137, a division of Quantum Sky.
 
 **Important: Keep it small. We scoped it to a few hours on purpose.**
