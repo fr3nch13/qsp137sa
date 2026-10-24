@@ -1,0 +1,10 @@
+# Run the published local-only demonstration with docker compose up -d.
+services:
+  linkscope:
+    image: ghcr.io/fr3nch13/qsp137sa:${LINKSCOPE_IMAGE_TAG:-main}
+    platform: linux/amd64
+    pull_policy: always
+    ports:
+      - "127.0.0.1:2158:2158"
+    environment:
+      DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY:-django-insecure-linkscope-local-development-only-not-for-production}"
