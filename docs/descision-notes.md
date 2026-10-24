@@ -45,6 +45,16 @@ It also supports devcontainers which I like using for the following reasons:
 
 - I had the agent come up with the name of the project `LinkScope` after reminding it the context of the company name, project/division name, and purpose of the application.
 
+## Tech Stack
+
+- Chose Django. Mentioned in job description, and can handle the project's needs.
+  - Future Authentication
+  - API responses for a react frontend
+  - API can also be used with an option MCP server sidecar
+- Chose docker image
+  - container native for things like k8s
+  - Dev image (for devcontainer) and prod image use the same Dockerfile for building both.
+
 ## Issues
 
 - The SNDlib source files both return a 404 (intentional?)

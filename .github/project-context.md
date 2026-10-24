@@ -4,6 +4,8 @@ This document describes the software product and its functional requirements. Th
 
 LinkScope is an application within Project 137, a division of Quantum Sky.
 
+**Important: Keep it small. We scoped it to a few hours on purpose.**
+
 ## Product Goal
 
 Build a small network-operations application that helps a team understand a European backbone and its connected operations sites and data centers. The application must answer:
@@ -88,15 +90,75 @@ Decision recorded on 2026-10-23; implementation is pending.
 
 Keep this adapter separate from routing and failure analysis. Recompute utilization from the merged network using the application's required routing rules; do not rely on TopoHub's precomputed loads.
 
+## Backend Framework Decision
+
+Decision recorded on 2026-10-23; implementation is pending.
+
+Use native Django for the Python backend and serve the application's JSON endpoints through Django views. Its built-in authentication, sessions, ORM, migrations, and administrative interface remain available for future needs, but are not required features of the initial version. FastAPI is not part of the selected stack, and no additional API framework (such as Django REST Framework or Django Ninja) has been selected.
+
+### Why Django rather than FastAPI
+
+- The original decision anticipated database-backed user authentication and protected API access. Django supplies that infrastructure together, reducing integration work compared with assembling equivalent components. Authentication has since been deferred for the initial version; retain the selected framework rather than spending the limited implementation time revisiting it.
+- FastAPI is a valid alternative, with strong typed validation and automatic OpenAPI support, but it would require additional choices and integration for equivalent local user management, database models, migrations, and administration.
+- Combining Django and FastAPI would introduce a second request-handling framework and explicit authentication integration without a current requirement that justifies the extra complexity.
+- The [job description](../docs/job-description.md) names Django, FastAPI, or a comparable framework; Django therefore aligns with the role without needing to demonstrate both frameworks.
+- This is a simplicity and delivery-scope decision, not a claim that FastAPI is less secure or incapable of meeting the requirements.
+
+### Authentication and persistence scope
+
+The decision below supersedes the earlier plan to include user accounts and database-backed sessions in the initial version. Defer authentication and application database persistence for the local-only demonstration. Network topology continues to come from local backbone and site files. No database service is needed for the initial application; a future internal release can select a relational database when introducing accounts and sessions.
+
+The initial API is unauthenticated and must not be exposed to shared or public networks. Publish container ports on host loopback only. Before an internal release, protect network-analysis API endpoints with explicit authentication and authorization checks. Native Django authentication does not make every view private automatically. Browser session authentication must retain CSRF protection for unsafe requests, including login. Authentication restricts access but does not replace rate limiting or other abuse controls.
+
+## Production Concern Priorities
+
+Decision recorded on 2026-10-23. These are implementation commitments, not claims of completed functionality. The assignment asks what was implemented, why anything was deferred, and what a first internal release would require, explicitly preferring "two done well to six done badly."
+
+Focus on **input validation and error handling** and **dependency and security checks**. Validation directly supports R2 and the credibility of the network results. Supply-chain checks address the third-party package, provisional dataset source, frontend dependencies, and container image without expanding the application into a larger platform.
+
+| Concern | Initial version and rationale | First internal release |
+|---|---|---|
+| Input validation and error handling | **Priority.** Validate backbone and CSV inputs with file-and-row errors, IDs and references, positive capacities, and valid demand values. Validate API requests and failure selections; return clear errors without partial success or exposed tracebacks. Test invalid inputs and the exact baseline totals. | Retain those tests and review error responses and validation against the actual deployment and input sources. |
+| Dependency and security checks | **Priority.** Pin dependencies, record the dataset source revision and checksum, automate Python and frontend dependency vulnerability checks, and scan the production container. Review actionable findings and document justified exceptions; adding a scanner alone is not completion. Specific tools remain to be selected. | Run checks in the release pipeline, assign responsibility for remediation, and establish recurring dependency and base-image updates. Confirm dataset provenance and permitted use. |
+| Authentication and access control | **Deferred.** Not an R1-R11 requirement. Local-only demonstration access avoids account-management scope within the few-hour budget; this is not suitable for shared or public deployment. | Add Django authentication, explicitly protected API views, least-privilege authorization, session/CSRF controls, and access-control tests before admitting shared users. Select account provisioning or company identity integration and the required persistence then. |
+| Logging | **Basic diagnostics only; production observability deferred.** Preserve explicit error reporting and useful server diagnostics, but do not build centralized logging or an audit system for the local demonstration. | Add structured request/error logs, correlation identifiers, appropriate redaction, authentication/security events, and a documented collection and retention policy. |
+| API versioning | **Formal compatibility policy deferred.** One frontend and backend are developed and delivered together, with no established external clients. Do not add parallel API versions or compatibility machinery speculatively. | Define and document a stable versioned API contract and deprecation policy before supporting independent clients or breaking changes. |
+| Configuration and secrets | **Basic safety retained; production secret management deferred.** Do not commit credentials or bake secrets into images. Keep configuration explicit, report invalid configuration, and avoid production credentials for a local demonstration. A managed secret service and environment provisioning are outside the initial scope. | Supply secrets through the deployment's approved mechanism, validate required settings, disable debug responses, configure allowed hosts and HTTPS/cookie settings, and document rotation and environment separation. |
+
+Document the actual implementation status and remaining deployment limitations when delivering the application. Deferring a production concern does not waive basic safe defaults or the requirement for maintainable code.
+
+## Container Infrastructure Decision
+
+Decision recorded on 2026-10-23; implementation is pending.
+
+- Package the application as a Docker image for production.
+- Use a devcontainer for development, built from an image defined by the project's Dockerfile.
+- Define development and production build targets in the same multi-stage Dockerfile. Both targets derive from a common base stage, sharing the runtime foundation and common dependencies rather than maintaining separate Dockerfiles.
+- Add development-only tools in the development target; do not include them in the production target. Production is a sibling of the development target, not downstream of it.
+- Follow the multi-stage pattern demonstrated in the project owner's personal CakePHP project: a shared `base`, a `development` stage, a dedicated `devcontainer` stage derived from development, an `application-build` stage, and a final `production` stage derived from base. Production copies built application artifacts without inheriting the development tooling.
+- Configure the devcontainer to build the `devcontainer` target and production builds to select the `production` target. Bind-mount the workspace for development; copy application artifacts into the production image.
+- Keep devcontainer lifecycle hooks separate: `post_create.sh` handles setup after creation, while `post_start.sh` handles repeatable startup work. Adapt their contents to LinkScope rather than copying CakePHP-specific ownership, paths, or personal agent configuration.
+- The reference illustrates the container structure, not a requirement to adopt its PHP/Apache runtime, optional tools, credential mounts, or installation scripts.
+- The upstream base image, runtime versions, production server, and container orchestration remain to be selected. Container packaging does not itself select Kubernetes or a cloud platform.
+
 ## Technology and Runtime Constraints
 
-- Backend: Python (selected for the TopoHub integration; the assignment permits Python or Go).
+- Backend: Python with native Django and TopoHub (the assignment permits Python or Go).
 - Frontend: TypeScript; React is optional.
 - Libraries may be used as appropriate.
-- No database is required.
+- Database: Application persistence and a database service are deferred with authentication; local files supply the network inputs.
+- Packaging: Docker, with development and production targets sharing a common base in one Dockerfile; development uses a devcontainer.
 - Provide one documented command to start the application.
 
 ## Scope Boundaries
+
+The assignment explicitly says: **"Keep it small. We scoped it to a few hours on purpose."** Treat this as an implementation constraint, not just background context.
+
+- Prioritize a working end-to-end application satisfying R1-R11, with focused correctness tests, the two selected production concerns, and the agreed container setup.
+- Use framework defaults and the simplest design that meets the requirements. Do not turn the selected stack into a broader platform: no speculative services, abstraction layers, optional integrations, or deployment infrastructure.
+- Defer authentication and database persistence for the local-only demonstration; do not expand into an identity-management product.
+- Apply the reference Dockerfile's structure without importing its unrelated tooling or complexity.
+- Treat production quality as correctness, clear errors, safe defaults, and maintainable code within this small scope, not a requirement to implement every production concern. Explicitly document deferred concerns and limitations.
 
 The deliverable is a first, small working network-analysis application. Keep implementation choices (including framework, internal architecture, and algorithms beyond the specified behavior) aligned with the requirements and avoid adding unrequested product scope. Assignment-specific presentation, AI workflow, repository submission, and follow-up session expectations are documented in the [assignment brief](../docs/Quantum_Sky_Project_137_Software%20Engineering%20Assignment.md).
 
@@ -105,6 +167,17 @@ The deliverable is a first, small working network-analysis application. Keep imp
 Outside `./docs/` and `./.github/`, all project files—including the root `README.md`—are part of the production-level application scope. Treat application code and user-facing materials as production-quality deliverables, not scratch work or assignment-only artifacts.
 
 The README is for end users. Keep it focused on the product overview, implemented capabilities, and supported user-facing options. Describe options at a high level; do not put internal architecture, source file paths, environment variable names, development commands, or CI/CD implementation details there. Be accurate about what is and is not available, and document how to use the application once it is runnable. Keep development setup, architecture, exact configuration, validation commands, and release mechanics in `.github/project-context.md` and `.github/tasks/*.md`.
+
+## Assignment Clarifications and Resolutions
+
+### Unavailable official backbone inputs
+
+- **Unclear:** Whether the assignment's SNDlib download failures are intentional and which alternative source is acceptable. On 2026-10-23, normal requests failed TLS hostname verification; diagnostic requests bypassing that check returned HTTP 404 for both assigned files. Bypassing TLS verification therefore did not resolve the missing inputs.
+- **Decision:** Proceed provisionally with a local `nobel-eu.txt` from the [sikorski-as/sndlib mirror](https://raw.githubusercontent.com/sikorski-as/sndlib/master/native/nobel-eu/nobel-eu.txt), fetched with TLS verification enabled. Use the agreed TopoHub local-file adapter rather than its bundled JSON or runtime downloads, and merge the assignment's `sites.csv` as described in the [data loading design](#data-loading-design).
+- **Evidence:** Parsing the mirror produced 28 nodes, 41 links, and 378 demands totaling 1,898 units. With the assignment's additions, those figures yield 37 nodes, 55 links, and 391 demands totaling 2,068 units. Matching counts do not prove official provenance.
+- **Open follow-up:** The project owner will contact Quantum Sky for clarification or an official source. Preserve source revision, retrieval date, checksum, and attribution when acquiring the local copy; compare or replace it when an official file becomes available. Source selection is recorded, but official provenance and permitted use remain unresolved. Track this in the [resource-gathering task](tasks/todo.md#gather-and-validate-the-nobel-eu-dataset-source).
+
+Use this record when explaining the assignment's "Unclear" topic: distinguish the verified access failures, our provisional engineering decision, and the clarification still outstanding.
 
 ## Known Issues
 
