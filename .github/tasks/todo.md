@@ -4,8 +4,13 @@
 
 ### Gather and validate the Nobel-EU dataset source
 
-- **Status:** Pending
+- **Status:** In progress; provisional mirror selected, official-source confirmation pending
 - **Goal:** Select a reliable source for the required `nobel-eu` backbone data and make its use reproducible.
+- **Decision (2026-10-23):** Use a local `nobel-eu.txt` from the [sikorski-as/sndlib native-text mirror](https://raw.githubusercontent.com/sikorski-as/sndlib/master/native/nobel-eu/nobel-eu.txt) provisionally. The project owner will contact Quantum Sky about the original source failures. This does not resolve provenance or permitted-use checks.
+- **Remaining work:**
+  - [ ] Obtain clarification from Quantum Sky and locate or confirm the official dataset.
+  - [ ] Preserve the provisional native file unchanged, recording its source revision, retrieval date, and checksum.
+  - [ ] Confirm provenance, permitted use, and attribution; compare or replace the provisional copy when an official file becomes available.
 - **Acceptance criteria:**
   - Confirm the selected source's provenance and permitted use.
   - Validate that the data represents 28 nodes, 41 links, and 378 demands, including node coordinates and demand values.
@@ -33,3 +38,17 @@ Potential alternatives found and checked:
 3. **XML copy in a project repository:** [Ruayakh8/ICA-JH-Simulation — `data/topologies/sndlib/nobel-eu.xml`](https://github.com/Ruayakh8/ICA-JH-Simulation/blob/main/data/topologies/sndlib/nobel-eu.xml) ([raw file](https://raw.githubusercontent.com/Ruayakh8/ICA-JH-Simulation/main/data/topologies/sndlib/nobel-eu.xml)). The raw file returned HTTP 200 and appears to be XML, but its provenance and contents have not been independently validated. Treat as a fallback candidate only.
 
 These candidates are not equivalent in provenance or format. Verify a candidate against known network counts and content before relying on it, and cite both SNDlib and any mirror or conversion used.
+
+### Implement local backbone and site loading with TopoHub
+
+- **Status:** Pending
+- **Design:** Follow the [local data loading design](../project-context.md#data-loading-design). Use TopoHub's native parser through `LocalSNDlibGenerator`, with local backbone input and CSV merging rather than bundled JSON or runtime downloads.
+- **Implementation checklist:**
+  - [ ] Select and pin a TopoHub version and verify the subclass extension against it.
+  - [ ] Add the assignment's site table as `sites.csv`.
+  - [ ] Implement local backbone loading with file-and-row validation and preserved link identities.
+  - [ ] Validate and merge sites, access links, capacities, coordinates, transit roles, and additional demands into one topology.
+  - [ ] Test invalid input, including unknown attachments, duplicate IDs, bad capacities, and site references independent of CSV row order.
+  - [ ] Verify the merged totals of 37 nodes, 55 links, and 391 demands totaling 2,068 units.
+- **Prerequisite for baseline integration tests:** A recorded local backbone snapshot from the resource-gathering task above. Loader implementation and synthetic-fixture tests need not wait for official-source confirmation.
+- **Review:** Design recorded only; the loader, dependency, and local input files have not yet been added.
