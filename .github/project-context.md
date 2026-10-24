@@ -65,9 +65,32 @@ The merged baseline is expected to contain **37 nodes, 55 links, and 391 demands
 - Do not communicate criticality or utilization using color alone; provide another visual cue or textual indicator.
 - Support interactive failure and restoration of nodes and links, with results shown in the current page.
 
+## Data Loading Design
+
+Decision recorded on 2026-10-23; implementation is pending.
+
+- Use the TopoHub Python package, with its version pinned once selected. This selects Python for the backend.
+- Provisionally use a local `nobel-eu.txt` obtained from the [sikorski-as/sndlib native-text mirror](https://raw.githubusercontent.com/sikorski-as/sndlib/master/native/nobel-eu/nobel-eu.txt). This is a temporary source choice while the project owner contacts Quantum Sky about the unavailable official inputs. Official provenance and permitted use remain unresolved.
+- Preserve the downloaded file unchanged and record its source, retrieval date, source revision, and checksum. Do not fetch it at application startup or silently fall back to another dataset.
+- Do not use TopoHub's bundled JSON as the application's input. Use an application-owned `LocalSNDlibGenerator` subclass of `topohub.providers.sndlib.SNDlibGenerator` to read our local native-text file instead of downloading it.
+- The loader must accept both the backbone file and `sites.csv`, returning a single merged topology object. Extend the earlier local-file prototype with CSV validation and merging; overriding `download_topo()` alone is not sufficient.
+
+### Local loader responsibilities
+
+1. Validate the backbone input before delegating to TopoHub's native-text parser. Invalid data must produce an error identifying the file and row; raw parser exceptions are not sufficient.
+2. Retain backbone link identities and assign each backbone link a capacity of 550 units. TopoHub's parser does not retain link IDs or capacities, so the application adapter must preserve and associate these with the parsed edges.
+3. Read `sites.csv` with the columns `site_id`, `site_type`, `attaches_to`, and `access_capacity`. Validate required values, supported site types, unique node IDs, and positive numeric capacities.
+4. Register all site nodes before resolving attachments, allowing a site to reference another CSV row regardless of row order. Resolve each semicolon-separated attachment to a backbone city or site; reject unknown references, self-links, and duplicate attachments with file-and-row errors.
+5. Create one undirected access link per attachment with the row's capacity. Preserve site types and mark only backbone cities and aggregation hubs as transit-capable. Assign site positions near their attachments for display.
+6. Add 10 units between each operations site and each data center, plus 50 units between the two data centers, recording each undirected demand once.
+7. Return the merged topology with nodes, links, coordinates, capacities, site types, transit eligibility, and demands. Keep node identifiers consistent across all records so city-name attachments resolve correctly even though TopoHub initially assigns integer node IDs.
+8. Verify the baseline totals: 37 nodes, 55 links, and 391 demands totaling 2,068 units. Test backbone parsing, CSV merging, validation errors, and those exact totals.
+
+Keep this adapter separate from routing and failure analysis. Recompute utilization from the merged network using the application's required routing rules; do not rely on TopoHub's precomputed loads.
+
 ## Technology and Runtime Constraints
 
-- Backend: Python or Go.
+- Backend: Python (selected for the TopoHub integration; the assignment permits Python or Go).
 - Frontend: TypeScript; React is optional.
 - Libraries may be used as appropriate.
 - No database is required.
