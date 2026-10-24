@@ -1,0 +1,27 @@
+# Clean up a branch/release image when its Git ref is deleted.
+name: Delete image tag
+
+on: delete
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: ci-${{ github.event.ref_type == 'tag' && format('refs/tags/{0}', github.event.ref) || github.event.ref }}
+  cancel-in-progress: true
+
+jobs:
+  delete:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Delete matching image version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python .github/ci/delete_image_tag.py

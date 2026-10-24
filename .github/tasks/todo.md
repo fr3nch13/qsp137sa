@@ -2,6 +2,19 @@
 
 ## Open
 
+### GitHub Actions checks, publishing, and image cleanup
+
+- **Status:** Implemented; local validation passed, Docker/GHCR validation pending
+- [x] Scope CI to same-repository PRs into main/dev, main pushes, and tag pushes; skip forks.
+- [x] Restrict release triggers and validation to SemVer tags.
+- [x] Treat `dev` as a persistent branch: publish `dev` only from PRs sourced from `dev`, test-only `main`-sourced PRs, reserve and protect `main`/`dev` tags.
+- [x] Add locked Ruff, Python/shell lint checks, CI helper tests, and Django tests.
+- [x] Build both images and require HTTP 200 and in-container tests before publication.
+- [x] Publish the tested production artifact to GHCR with validated branch/main/release tags.
+- [x] Add ref-deletion cleanup with shared-version protection and explicit API errors.
+- [x] Complete locally available checks: Ruff lint/format, ShellCheck, actionlint, lockfile validation, 18 CI-helper tests, and three Django tests.
+- **Limitation:** Docker builds and GitHub/GHCR operations cannot be exercised in this environment; verify them on the first Actions run. Package deletion requires repository Actions admin access to the package.
+
 ### Django scaffold and container startup
 
 - **Status:** Complete; Docker image validation remains environment-blocked
