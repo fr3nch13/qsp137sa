@@ -177,6 +177,29 @@ With the key exported, validate with `uv lock --check`, `uv run python manage.py
 
 Build targets with `docker build --target development -t linkscope:development .` and `docker build --target production -t linkscope:production .`. Smoke-test Python and uv using explicit commands, for example `docker run --rm linkscope:production uv --version`. Verify both images define UID 10001, with `/app` writable in development and non-writable in production. The devcontainer may adjust the effective development UID/GID to match the host workspace. These checks validate the image foundation, not application behavior. Also verify the devcontainer opens the workspace at `/app` and runs both lifecycle hooks.
 
+## GitHub Actions and Image Publishing
+
+Branching model: `dev` is the persistent development branch, `main` is the persistent stable branch, and Git tags are production releases. Feature branches open PRs into `dev`, or directly into `main` for hotfixes; `dev` is promoted to `main` through a PR.
+
+`.github/workflows/ci.yml` runs for same-repository pull requests targeting `main` or `dev`, pushes to `main`, and tag pushes. Pushes to `dev` or any other branch run nothing; work there is validated only through PRs. A PR sourced from `dev` (normally `dev` → `main`) publishes `dev`. PRs sourced from `main` (for example syncing a hotfix into `dev`) are test-only because `main` publishes from its own pushes. Fork PRs are skipped by a job-level condition before any runner starts, so they consume no Actions minutes. Published releases reuse their tag-push image rather than triggering duplicate builds.
+
+The test job installs locked dependencies with Python 3.13 and uv 0.9.30, runs Ruff lint/format checks, ShellCheck, CI-helper unit tests, Django checks and application tests, and builds both Docker targets. `.github/ci/test-images.sh` tests the development startup hook (including repeated invocation), verifies HTTP **200** for development and production, runs Django checks/tests inside both containers, and checks production identity, file permissions, and exclusion of local secrets/Git metadata. Both HTTP endpoints are published on runner loopback only. A random ephemeral secret key is supplied at runtime; no deployment secrets are needed.
+
+Only after those checks pass is the tested production image transferred as a one-day workflow artifact to a separate publishing job. That job uses `GITHUB_TOKEN` with package write permission; the build job has read-only repository permission and no publishing credentials. Production tags are:
+
+- Feature PR into `dev` or `main`: `ghcr.io/fr3nch13/qsp137sa:<source-branch>`.
+- PR from `dev` (development environment): `ghcr.io/fr3nch13/qsp137sa:dev`.
+- Push to `main` (stable): `ghcr.io/fr3nch13/qsp137sa:main`.
+- Git tag: `ghcr.io/fr3nch13/qsp137sa:<tag>`.
+
+Branch names are lowercased, invalid Docker tag characters become hyphens, and leading dots/hyphens are removed (`feature/web-ui` becomes `feature-web-ui`). Invalid/overlong tags fail instead of being silently truncated. Normalization collisions with existing branches, the reserved `main`/`dev` tags, or release tags fail explicitly; Git tags named `main` or `dev` are rejected. Release names must already be valid Docker tags and must not collide with branch image tags. OCI labels record the source repository, revision, ref, and unique workflow run so separate publications do not normally share an image version.
+
+`.github/workflows/delete-image.yml` runs on branch/tag deletion and removes matching GHCR versions, if present. It uses trusted code from `main`, paginates package versions, and refuses to delete a version carrying any other tag. `main` and `dev` image tags are protected from automatic deletion. Missing packages/tags are no-ops; permission and API errors fail explicitly. Deletion cancels an in-progress workflow for the same ref, and publishing also verifies that the source Git ref still exists. Untagged historical versions are not garbage-collected by this workflow.
+
+The repository must have Actions enabled and package creation/write permission in GHCR. The package must grant this repository's Actions token **admin** access for deletion; source labels link new packages to the repository, but existing package permissions may need adjusting. A first package publication can require owner/organization approval. The delete workflow must exist on the default branch (`main`). GitHub does not emit deletion events when more than three tags are deleted at once; delete tags individually when automatic cleanup is required.
+
+For local validation, run `uv sync --locked`, `uv run ruff check .`, `uv run ruff format --check .`, `uv run python -m unittest discover -s .github/ci -v`, and ShellCheck on `.devcontainer/*.sh` and `.github/ci/*.sh`. Validate workflows with actionlint. To reproduce image checks on a Docker host, build `linkscope:development` and `linkscope:production` from their matching targets, then run `bash .github/ci/test-images.sh` from the repository root. Docker image builds, GHCR publication, and deletion require validation on a suitable Docker/GitHub environment; static/local application checks alone do not prove them.
+
 ## Technology and Runtime Constraints
 
 - Backend: Python with native Django and TopoHub (the assignment permits Python or Go).
