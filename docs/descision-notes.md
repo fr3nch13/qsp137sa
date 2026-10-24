@@ -63,3 +63,4 @@ It also supports devcontainers which I like using for the following reasons:
 ## Agent Steering
 
 - When creating the initial version of the Docker file, it wanted to make base, development, devcontainer, application-build, and production images. We don't need all of that. I had it reduce to just base, development and production. We can add other images later as needed.
+- The agent created the application at /app in the Dockerfile and also make it the app user's home dir. i have it make a proper one

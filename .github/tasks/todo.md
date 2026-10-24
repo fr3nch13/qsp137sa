@@ -2,6 +2,17 @@
 
 ## Open
 
+### Django scaffold and container startup
+
+- **Status:** Complete; Docker image validation remains environment-blocked
+- [x] Scaffold Django without authentication or database setup.
+- [x] Add locked Gunicorn dependency and replace the production placeholder with the WSGI server on port 2158.
+- [x] Require the secret key at runtime and restrict allowed hosts to local addresses.
+- [x] Document local startup and loopback-only container publishing.
+- [x] Verify system checks, all three route tests, and an HTTP request through the exact Docker Gunicorn command on port 2158.
+- **Review:** Lockfile and whitespace checks passed. Missing runtime secret key produces an explicit configuration error. Gunicorn starts, serves HTTP 200, and shuts down cleanly; its unused control socket is disabled for compatibility with root-owned application files.
+- **Limitation:** Docker is unavailable in the current environment; image build and container smoke tests must run where Docker is available.
+
 ### Gather and validate the Nobel-EU dataset source
 
 - **Status:** In progress; provisional mirror selected, official-source confirmation pending
@@ -44,11 +55,11 @@ These candidates are not equivalent in provenance or format. Verify a candidate 
 - **Status:** Pending
 - **Design:** Follow the [local data loading design](../project-context.md#data-loading-design). Use TopoHub's native parser through `LocalSNDlibGenerator`, with local backbone input and CSV merging rather than bundled JSON or runtime downloads.
 - **Implementation checklist:**
-  - [ ] Select and pin a TopoHub version and verify the subclass extension against it.
+  - [ ] Verify the `SNDlibGenerator` subclass extension against the locked TopoHub version.
   - [ ] Add the assignment's site table as `sites.csv`.
   - [ ] Implement local backbone loading with file-and-row validation and preserved link identities.
   - [ ] Validate and merge sites, access links, capacities, coordinates, transit roles, and additional demands into one topology.
   - [ ] Test invalid input, including unknown attachments, duplicate IDs, bad capacities, and site references independent of CSV row order.
   - [ ] Verify the merged totals of 37 nodes, 55 links, and 391 demands totaling 2,068 units.
 - **Prerequisite for baseline integration tests:** A recorded local backbone snapshot from the resource-gathering task above. Loader implementation and synthetic-fixture tests need not wait for official-source confirmation.
-- **Review:** Design recorded only; the loader, dependency, and local input files have not yet been added.
+- **Review:** Dependencies are declared and locked; the loader and local input files have not yet been added.

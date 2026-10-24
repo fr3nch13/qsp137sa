@@ -6,4 +6,4 @@ The planned application will help teams explore network weak points, understand 
 
 The project is based on the `nobel-eu` network from the [Survivable Network Design Library (SNDlib)](https://sndlib.put.poznan.pl/), with additional operations sites and data centers.
 
-> **Availability:** The application is not yet implemented, so a runnable version and usage instructions are not available.
+> **Availability:** The server currently displays a status page only. Network analysis and the interactive Web UI are not implemented yet. The demonstration is local-only and has no authentication.

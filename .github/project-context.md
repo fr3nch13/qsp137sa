@@ -71,7 +71,7 @@ The merged baseline is expected to contain **37 nodes, 55 links, and 391 demands
 
 Decision recorded on 2026-10-23; implementation is pending.
 
-- Use the TopoHub Python package, with its version pinned once selected. This selects Python for the backend.
+- Use TopoHub 1.5.1, pinned in `pyproject.toml` and `uv.lock`. This selects Python for the backend.
 - Provisionally use a local `nobel-eu.txt` obtained from the [sikorski-as/sndlib native-text mirror](https://raw.githubusercontent.com/sikorski-as/sndlib/master/native/nobel-eu/nobel-eu.txt). This is a temporary source choice while the project owner contacts Quantum Sky about the unavailable official inputs. Official provenance and permitted use remain unresolved.
 - Preserve the downloaded file unchanged and record its source, retrieval date, source revision, and checksum. Do not fetch it at application startup or silently fall back to another dataset.
 - Do not use TopoHub's bundled JSON as the application's input. Use an application-owned `LocalSNDlibGenerator` subclass of `topohub.providers.sndlib.SNDlibGenerator` to read our local native-text file instead of downloading it.
@@ -92,7 +92,7 @@ Keep this adapter separate from routing and failure analysis. Recompute utilizat
 
 ## Backend Framework Decision
 
-Decision recorded on 2026-10-23; implementation is pending.
+Decision recorded on 2026-10-23; the Django scaffold and a status page are implemented. Network analysis and the Web UI remain pending.
 
 Use native Django for the Python backend and serve the application's JSON endpoints through Django views. Its built-in authentication, sessions, ORM, migrations, and administrative interface remain available for future needs, but are not required features of the initial version. FastAPI is not part of the selected stack, and no additional API framework (such as Django REST Framework or Django Ninja) has been selected.
 
@@ -129,7 +129,7 @@ Document the actual implementation status and remaining deployment limitations w
 
 ## Container Infrastructure Decision
 
-Decision recorded on 2026-10-23; the Dockerfile and devcontainer foundations are implemented, while application packaging remains pending.
+Decision recorded on 2026-10-23; the Dockerfile and devcontainer foundations package the initial Django scaffold.
 
 - Package the application as a Docker image for production.
 - Use a devcontainer for development, built from an image defined by the project's Dockerfile.
@@ -139,11 +139,39 @@ Decision recorded on 2026-10-23; the Dockerfile and devcontainer foundations are
 - Configure the devcontainer to build the `development` target, mount the workspace at `/app`, and run as `app`; production builds select the `production` target and copy application files directly into the image. The devcontainer uses the Dockerfile's long-running development command and aligns the `app` UID/GID with the host where supported so the bind-mounted workspace remains writable.
 - Keep devcontainer lifecycle hooks separate: `post_create.sh` handles setup after creation, while `post_start.sh` handles repeatable startup work. Adapt their contents to LinkScope rather than copying CakePHP-specific ownership, paths, or personal agent configuration.
 - The reference illustrates the container structure, not a requirement to adopt its PHP/Apache runtime, optional tools, credential mounts, or installation scripts.
-- Use `ghcr.io/astral-sh/uv:python3.13-bookworm-slim` directly as the common base, without a build argument or digest pin. The project owner accepts the mutable tag to keep the Dockerfile simple. This selects Python 3.13, Debian Bookworm slim, and uv. Manage Python dependencies with `pyproject.toml` and a committed `uv.lock` when the application dependencies are added.
+- Use `ghcr.io/astral-sh/uv:python3.13-bookworm-slim` directly as the common base, without a build argument or digest pin. The project owner accepts the mutable tag to keep the Dockerfile simple. This selects Python 3.13, Debian Bookworm slim, and uv. Manage exact direct dependency versions in `pyproject.toml`, with a committed `uv.lock`; the devcontainer syncs dependencies on creation and production installs locked runtime dependencies during its image build.
 - Development adds only Git, curl, and CA certificates and stays running for workspace attachment. Both targets define the common `app` user (UID/GID 10001); the devcontainer may align that user's UID/GID with the host for writable workspace mounts. Development owns `/app`; production restores root ownership of its application directory and files so the runtime user cannot modify them. Production does not inherit development tools.
-- The application, dependency manifests, frontend build, and production server are not implemented yet. The production target currently only prints the Python version and exits; it is not a runnable application release. Replace this explicit placeholder with the selected production server and install locked runtime dependencies when adding the Django application.
+- The `app` user's home is `/home/app`, created and owned by that user, while the working directory and bind-mounted workspace remain `/app`. The devcontainer mounts a named volume (`linkscope-home-${devcontainerId}`) at `/home/app` so home-relative IDE files and tool caches persist across normal rebuilds. The host-mounted workspace also survives rebuilds; removing the named volume deletes its home data.
+- The legacy `.cache`, `.copilot`, `.vscode-server`, `.dotnet`, and `.gitconfig` entries were migrated to the home volume and removed from `/app` after content verification. Sixteen differing or missing originals (runtime state and old session locks) are preserved under `/home/app/.workspace-home-backup` without replacing current home state. The one-time migration hook and obsolete workspace ignore entries have been removed. Project files, `.env`, and `.venv` remain in `/app`.
+- Django 6.1.2 and TopoHub 1.5.1 are direct dependencies. TopoHub 1.5.1 does not declare NetworkX, which its SNDlib provider imports, so NetworkX 3.7 is also pinned directly. Gunicorn 26.2.0 serves `linkscope.wsgi:application` on `0.0.0.0:2158` in the production image, logging requests to stdout. Its unused control socket is disabled so it does not write under the root-owned application directory. The root page reports scaffold status only; network analysis and the frontend remain pending.
 - `.dockerignore` excludes local environments, secrets, Git metadata, and assignment/agent documentation from the build context.
-- The production server and container orchestration remain to be selected. Container packaging does not itself select Kubernetes or a cloud platform.
+- Container orchestration remains to be selected. Container packaging does not itself select Kubernetes or a cloud platform.
+
+### Django startup
+
+Run `uv sync --locked` to install dependencies. The devcontainer loads `.env.default` first and `.env` second through Docker's ordered `--env-file` arguments; values in `.env` override defaults. The template contains a public development-only placeholder key; `.env` is private and ignored by Git, and both files are excluded from image builds.
+
+Before creating the devcontainer on a fresh checkout, create `.env` on the host with a randomly generated `DJANGO_SECRET_KEY`. Both environment files must exist before Docker starts the container. Rebuild the devcontainer after changing either file; this configuration does not update an already running container's environment. No dotenv package or Django settings changes are needed.
+
+Outside the devcontainer, supply `DJANGO_SECRET_KEY` through the environment before using Django or Gunicorn; an absent or blank value raises an explicit configuration error. For a temporary local session, generate an ephemeral key:
+
+```sh
+export DJANGO_SECRET_KEY="$(uv run python -c 'import secrets; print(secrets.token_urlsafe(64))')"
+uv run python manage.py runserver 0.0.0.0:2158
+```
+
+The devcontainer forwards port 2158 and keeps its existing keep-alive command. Its `post_start.sh` hook starts the auto-reloading Django development server in the background, using a lifetime `flock` lock to prevent duplicate starts. Combined server stdout/stderr is appended to `/home/app/.cache/linkscope/runserver.log` and mirrored through `/proc/1/fd/1` to the container's stdout using `tee`, making it available to `docker logs` and configured container log collectors. This requires the main process's stdout to be writable by `app`; the hook fails explicitly otherwise. The hook checks HTTP readiness for up to 30 seconds and reports startup failures; repeat calls leave an existing server running. Debug responses remain disabled. Only `localhost`, `127.0.0.1`, and `[::1]` are allowed hosts. Authentication, administration, database configuration, and static assets are deliberately not enabled yet.
+
+For the production image, with `DJANGO_SECRET_KEY` exported in the host shell:
+
+```sh
+docker build --target production -t linkscope:production .
+docker run --rm -p 127.0.0.1:2158:2158 -e DJANGO_SECRET_KEY linkscope:production
+```
+
+Visit `http://localhost:2158/` for the status page. The key is runtime configuration, not an image-build input; do not commit it. Although Gunicorn is a production server, this unauthenticated scaffold remains a local-only demonstration, not a production-ready release.
+
+With the key exported, validate with `uv lock --check`, `uv run python manage.py check`, and `uv run python manage.py test linkscope`. To smoke-test the production entry point without Docker, run `uv run gunicorn --bind 0.0.0.0:2158 --access-logfile - --no-control-socket linkscope.wsgi:application` and request the status page.
 
 ### Container foundation validation
 
@@ -152,7 +180,7 @@ Build targets with `docker build --target development -t linkscope:development .
 ## Technology and Runtime Constraints
 
 - Backend: Python with native Django and TopoHub (the assignment permits Python or Go).
-- Frontend: TypeScript; React is optional.
+- Frontend: TypeScript; React is optional. Use port `2158` for the Web UI and forward it through the devcontainer.
 - Libraries may be used as appropriate.
 - Database: Application persistence and a database service are deferred with authentication; local files supply the network inputs.
 - Packaging: Docker, with development and production targets sharing a common base in one Dockerfile; development uses a devcontainer.
