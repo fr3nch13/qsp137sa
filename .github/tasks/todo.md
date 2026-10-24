@@ -2,6 +2,17 @@
 
 ## Open
 
+### Docker Compose startup
+
+- **Status:** Implemented; configuration validated, user confirmed startup on macOS
+- [x] Add a single-service Compose file using the published image, loopback-only port publishing, and configurable image tag and secret key.
+- [x] Document Compose startup, logs, shutdown, and configuration while retaining the Docker run alternative.
+- [x] Validate configuration and review the diff; record any environment limitations.
+- **Review:** Standalone Docker Compose v2.40.3 successfully rendered the default `main`, overridden `dev`, and versioned-release configurations. Assertions verified image selection, secret values, always-pull behavior, loopback-only port 2158, and absence of builds or volumes. Whitespace checks passed.
+- **User verification:** Compose pulled the image, created the network, and started the container on an ARM64 Mac. Container status remained up and Gunicorn booted successfully, using AMD64 emulation. Browser HTTP readiness and shutdown were not reported.
+- **Architecture decision:** Explicitly select Linux AMD64 in Compose and the Docker run alternative. Retain single-platform CI and use host-provided emulation on ARM64 for the local demo; record rationale and trade-offs in the interview preparation notes. The briefly proposed multi-platform CI edits were removed before publication.
+- **Final validation:** Standalone Compose v2.40.3 rendered the explicit `linux/amd64` platform and loopback binding successfully. CI workflow and smoke-test script match their committed versions.
+
 ### Upgrade Actions runtimes after the first PR run
 
 - **Status:** Implemented; repeat CI validation pending

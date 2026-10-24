@@ -53,6 +53,16 @@ The expected merged baseline is **37 nodes, 55 links, and 391 demands totaling 2
 
 Passing scaffold CI does not prove network-analysis correctness or production readiness.
 
+## Container architecture decision
+
+Decision recorded on 2026-10-24: retain the published Linux AMD64 image and explicitly select `linux/amd64` in Compose and the README's Docker run command, rather than adding multi-platform publishing.
+
+- **Why:** Keep build, test, and publishing complexity proportionate to the small assignment. AMD64 Linux hosts run the image natively; the author's Apple Silicon Mac can use Docker Desktop's AMD64 emulation for the local demonstration. No ARM64 production requirement has been established.
+- **What prompted it:** Compose showed a platform-mismatch warning on the ARM64 Mac. It was not a startup failure: the user supplied output showing the container remained up and Gunicorn successfully started. Docker run and Compose use the same Docker engine and emulation support; explicitly selecting the platform declares the intended architecture rather than adding emulation.
+- **Trade-off:** ARM64 execution requires emulation support and can be slower. This is not evidence of native ARM64 compatibility or production performance. Linux ARM64 servers need emulation configured separately; the Compose setting alone does not provide it.
+- **When to revisit:** If native ARM64 deployment or measured performance requirements justify it, build and test both architectures and publish them under one multi-platform tag.
+- **Evidence boundary:** Local configuration validation and the user's startup logs support this decision. HTTP readiness, full application functionality, and production suitability must be verified separately.
+
 ## Future / proposed changes
 
 These are proposals for evaluation, not implemented capabilities or additions to the initial assignment scope.
