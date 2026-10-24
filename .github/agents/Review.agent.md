@@ -120,6 +120,10 @@ status: pending
 
 <Only tests that would catch a finding above or cover new behavior.>
 
+## Remediated Actions Taken
+
+<Instruct the coding agent to update this section with the actions it has taken to remediate the findings. And update the `status:` in the header of the review file accordingly.>
+
 ```
 
 ## Chat reply
