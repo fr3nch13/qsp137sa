@@ -151,7 +151,7 @@ Decision recorded on 2026-10-23; the Dockerfile and devcontainer foundations pac
 
 Run `uv sync --locked` to install dependencies. The devcontainer loads `.env.default` first and `.env` second through Docker's ordered `--env-file` arguments; values in `.env` override defaults. The template contains a public development-only placeholder key; `.env` is private and ignored by Git, and both files are excluded from image builds.
 
-Before creating the devcontainer on a fresh checkout, create `.env` on the host with a randomly generated `DJANGO_SECRET_KEY`. Both environment files must exist before Docker starts the container. Rebuild the devcontainer after changing either file; this configuration does not update an already running container's environment. No dotenv package or Django settings changes are needed.
+Before Docker starts, the devcontainer's host-side `initializeCommand` uses a POSIX shell to create an empty `.env` with owner-only permissions if absent. Existing contents and permissions are preserved. Fresh checkouts therefore use the public development-only defaults without manual setup. To override them, put a randomly generated `DJANGO_SECRET_KEY` in the private `.env`. Rebuild the devcontainer after changing either file; this configuration does not update an already running container's environment. No dotenv package or Django settings changes are needed.
 
 Outside the devcontainer, supply `DJANGO_SECRET_KEY` through the environment before using Django or Gunicorn; an absent or blank value raises an explicit configuration error. For a temporary local session, generate an ephemeral key:
 
