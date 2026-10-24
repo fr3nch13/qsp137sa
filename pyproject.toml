@@ -9,3 +9,8 @@ dependencies = [
     "networkx==3.7",
     "topohub==1.5.1",
 ]
+
+[dependency-groups]
+dev = [
+    "ruff==0.17.2",
+]

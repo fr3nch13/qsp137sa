@@ -16,6 +16,8 @@ if ! exec 3>/proc/1/fd/1; then
 fi
 
 # flock holds the lock for the server's lifetime, including Django's reloader.
+# $1 is expanded by the child shell, not this hook.
+# shellcheck disable=SC2016
 nohup flock --nonblock --conflict-exit-code 73 "${state_dir}/runserver.lock" \
     bash -c 'set -o pipefail; uv run --locked python manage.py runserver 0.0.0.0:2158 2>&1 | tee -a "$1"' \
     bash "${log_file}" \

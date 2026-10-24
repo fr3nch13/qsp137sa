@@ -1,5 +1,6 @@
 # Ignore local Python artifacts and private configuration; keep the shared template.
 .venv/
+.ruff_cache/
 __pycache__/
 *.py[cod]
 .env
