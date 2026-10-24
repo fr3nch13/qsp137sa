@@ -1,7 +1,10 @@
-.cache/
-.copilot/
-.vscode-server/
-.gitconfig
+# Ignore local Python artifacts and private configuration; keep the shared template.
+.venv/
+__pycache__/
+*.py[cod]
+.env
+.env.*
+!.env.default
 .devcontainer/*
 !.devcontainer/devcontainer.json
 !.devcontainer/post_create.sh

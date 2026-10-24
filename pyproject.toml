@@ -1,0 +1,11 @@
+# Python application dependencies; install the locked set with uv sync --locked.
+[project]
+name = "linkscope"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = [
+    "django==6.1.2",
+    "gunicorn==26.2.0",
+    "networkx==3.7",
+    "topohub==1.5.1",
+]

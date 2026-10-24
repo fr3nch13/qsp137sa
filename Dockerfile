@@ -10,7 +10,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 RUN groupadd --gid 10001 app \
-    && useradd --uid 10001 --gid app --no-create-home --home-dir /app app \
+    && useradd --uid 10001 --gid app --create-home --home-dir /home/app app \
     && chown app:app /app
 
 FROM base AS development
@@ -28,9 +28,13 @@ FROM base AS production
 
 COPY --chown=root:root . /app
 
-RUN chown root:root /app
+RUN uv sync --locked --no-dev \
+    && chown root:root /app
+
+ENV PATH="/app/.venv/bin:${PATH}"
 
 USER app
 
-# Replace with the production server command when the Django app is added.
-CMD ["python", "--version"]
+EXPOSE 2158
+
+CMD ["gunicorn", "--bind", "0.0.0.0:2158", "--access-logfile", "-", "--no-control-socket", "linkscope.wsgi:application"]

@@ -1,9 +1,5 @@
 # Exclude development metadata, local environments, and secrets from image builds.
 .git
-.cache/
-.copilot/
-.vscode-server/
-.gitconfig
 .github
 .devcontainer
 docs

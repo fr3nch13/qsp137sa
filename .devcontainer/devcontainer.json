@@ -6,6 +6,14 @@
     },
     "workspaceMount": "source=${localWorkspaceFolder},target=/app,type=bind",
     "workspaceFolder": "/app",
+    "mounts": [
+        "source=linkscope-home-${devcontainerId},target=/home/app,type=volume"
+    ],
+    "runArgs": [
+        "--env-file", "${localWorkspaceFolder}/.env.default",
+        "--env-file", "${localWorkspaceFolder}/.env"
+    ],
+    "forwardPorts": [2158],
     "updateRemoteUserUID": true,
     "overrideCommand": false,
     "waitFor": "postCreateCommand",
