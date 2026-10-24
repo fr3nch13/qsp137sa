@@ -1,0 +1,25 @@
+# Exclude development metadata, local environments, and secrets from image builds.
+.git
+.cache/
+.copilot/
+.vscode-server/
+.gitconfig
+.github
+.devcontainer
+docs
+AGENTS.md
+.venv
+**/__pycache__
+**/*.py[cod]
+.pytest_cache
+.ruff_cache
+.mypy_cache
+node_modules
+**/node_modules
+.env
+.env.*
+**/.env
+**/.env.*
+*.pem
+*.key
+*.sqlite3

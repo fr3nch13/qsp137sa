@@ -59,3 +59,7 @@ It also supports devcontainers which I like using for the following reasons:
 
 - The SNDlib source files both return a 404 (intentional?)
 - The SNDlib website's TLS certificate's CommonName and SAN don't match the given hostname (also intentional?).
+
+## Agent Steering
+
+- When creating the initial version of the Docker file, it wanted to make base, development, devcontainer, application-build, and production images. We don't need all of that. I had it reduce to just base, development and production. We can add other images later as needed.
