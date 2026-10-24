@@ -2,6 +2,14 @@
 
 ## Open
 
+### Review F1: Fresh-checkout devcontainer environment
+
+- **Status:** Complete; host initialization validated
+- [x] Create the private environment file before Docker starts without overwriting existing values.
+- [x] Verify fresh-checkout permissions and preservation of existing configuration.
+- **Review:** All 20 CI-helper tests passed, including new-file mode `0600`, workspace paths containing spaces, repeated initialization, and preservation of existing file contents and permissions. Ruff and whitespace checks passed.
+- **Limitation:** Full devcontainer startup requires Docker; host initialization is tested independently.
+
 ### GitHub Actions checks, publishing, and image cleanup
 
 - **Status:** Implemented; local validation passed, Docker/GHCR validation pending
