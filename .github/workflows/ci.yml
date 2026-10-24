@@ -1,0 +1,135 @@
+# Validate both container targets and publish only the tested production image.
+name: CI
+
+on:
+  pull_request:
+    branches: [main, dev]
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+    # SemVer releases only (1.2.3 or 1.2.3-rc.1); image_tag.py validates strictly.
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+      - '[0-9]+.[0-9]+.[0-9]+-*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.head.ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    # Fork PRs are skipped before a runner starts, so they use no Actions minutes.
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      tag: ${{ steps.metadata.outputs.tag }}
+      publish: ${{ steps.metadata.outputs.publish }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: '0.9.30'
+          python-version: '3.13'
+          enable-cache: true
+
+      - name: Validate image tag
+        id: metadata
+        run: python .github/ci/image_tag.py
+
+      - name: Install locked dependencies
+        run: uv sync --locked
+
+      - name: Lint, format, and test
+        run: |
+          uv run --locked ruff check .
+          uv run --locked ruff format --check .
+          shellcheck .devcontainer/*.sh .github/ci/*.sh
+          uv run --locked python -m unittest discover -s .github/ci -v
+          DJANGO_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(64))')"
+          export DJANGO_SECRET_KEY
+          uv run --locked python manage.py check
+          uv run --locked python manage.py test linkscope
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build development image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: development
+          load: true
+          tags: linkscope:development
+          cache-from: type=gha,scope=development
+          cache-to: type=gha,mode=max,scope=development
+
+      - name: Build production image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: production
+          load: true
+          tags: linkscope:production
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.ref.name=${{ github.ref }}
+            io.linkscope.ci.run=${{ github.run_id }}-${{ github.run_attempt }}
+          cache-from: type=gha,scope=production
+          cache-to: type=gha,mode=max,scope=production
+
+      - name: Test images and HTTP endpoints
+        run: bash .github/ci/test-images.sh
+
+      - name: Export tested production image
+        if: steps.metadata.outputs.publish == 'true'
+        run: docker save linkscope:production --output "${RUNNER_TEMP}/production.tar"
+
+      - uses: actions/upload-artifact@v4
+        if: steps.metadata.outputs.publish == 'true'
+        with:
+          name: production-image
+          path: ${{ runner.temp }}/production.tar
+          retention-days: 1
+          compression-level: 0
+
+  publish:
+    needs: test
+    if: needs.test.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: production-image
+          path: ${{ runner.temp }}
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish tested production image
+        env:
+          IMAGE_TAG: ${{ needs.test.outputs.tag }}
+          IMAGE: ghcr.io/fr3nch13/qsp137sa
+          SOURCE_REF: ${{ github.event_name == 'pull_request' && format('heads/{0}', github.head_ref) || github.ref }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api "repos/${GITHUB_REPOSITORY}/git/ref/${SOURCE_REF#refs/}" --silent
+          docker load --input "${RUNNER_TEMP}/production.tar"
+          docker tag linkscope:production "${IMAGE}:${IMAGE_TAG}"
+          docker push "${IMAGE}:${IMAGE_TAG}"
