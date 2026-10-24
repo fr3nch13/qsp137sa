@@ -1,0 +1,8 @@
+.cache/
+.copilot/
+.vscode-server/
+.gitconfig
+.devcontainer/*
+!.devcontainer/devcontainer.json
+!.devcontainer/post_create.sh
+!.devcontainer/post_start.sh

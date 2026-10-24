@@ -1,0 +1,15 @@
+{
+    "name": "LinkScope",
+    "build": {
+        "dockerfile": "../Dockerfile",
+        "target": "development"
+    },
+    "workspaceMount": "source=${localWorkspaceFolder},target=/app,type=bind",
+    "workspaceFolder": "/app",
+    "updateRemoteUserUID": true,
+    "overrideCommand": false,
+    "waitFor": "postCreateCommand",
+    "postCreateCommand": "bash .devcontainer/post_create.sh",
+    "postStartCommand": "bash .devcontainer/post_start.sh",
+    "remoteUser": "app"
+}

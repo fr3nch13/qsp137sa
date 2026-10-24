@@ -129,17 +129,25 @@ Document the actual implementation status and remaining deployment limitations w
 
 ## Container Infrastructure Decision
 
-Decision recorded on 2026-10-23; implementation is pending.
+Decision recorded on 2026-10-23; the Dockerfile and devcontainer foundations are implemented, while application packaging remains pending.
 
 - Package the application as a Docker image for production.
 - Use a devcontainer for development, built from an image defined by the project's Dockerfile.
 - Define development and production build targets in the same multi-stage Dockerfile. Both targets derive from a common base stage, sharing the runtime foundation and common dependencies rather than maintaining separate Dockerfiles.
 - Add development-only tools in the development target; do not include them in the production target. Production is a sibling of the development target, not downstream of it.
-- Follow the multi-stage pattern demonstrated in the project owner's personal CakePHP project: a shared `base`, a `development` stage, a dedicated `devcontainer` stage derived from development, an `application-build` stage, and a final `production` stage derived from base. Production copies built application artifacts without inheriting the development tooling.
-- Configure the devcontainer to build the `devcontainer` target and production builds to select the `production` target. Bind-mount the workspace for development; copy application artifacts into the production image.
+- Adapt the shared-base pattern with only three stages: `base`, `development`, and `production`. Separate devcontainer and application-build stages add no value yet; introduce a build stage only when actual compilation or dependency installation requires one.
+- Configure the devcontainer to build the `development` target, mount the workspace at `/app`, and run as `app`; production builds select the `production` target and copy application files directly into the image. The devcontainer uses the Dockerfile's long-running development command and aligns the `app` UID/GID with the host where supported so the bind-mounted workspace remains writable.
 - Keep devcontainer lifecycle hooks separate: `post_create.sh` handles setup after creation, while `post_start.sh` handles repeatable startup work. Adapt their contents to LinkScope rather than copying CakePHP-specific ownership, paths, or personal agent configuration.
 - The reference illustrates the container structure, not a requirement to adopt its PHP/Apache runtime, optional tools, credential mounts, or installation scripts.
-- The upstream base image, runtime versions, production server, and container orchestration remain to be selected. Container packaging does not itself select Kubernetes or a cloud platform.
+- Use `ghcr.io/astral-sh/uv:python3.13-bookworm-slim` directly as the common base, without a build argument or digest pin. The project owner accepts the mutable tag to keep the Dockerfile simple. This selects Python 3.13, Debian Bookworm slim, and uv. Manage Python dependencies with `pyproject.toml` and a committed `uv.lock` when the application dependencies are added.
+- Development adds only Git, curl, and CA certificates and stays running for workspace attachment. Both targets define the common `app` user (UID/GID 10001); the devcontainer may align that user's UID/GID with the host for writable workspace mounts. Development owns `/app`; production restores root ownership of its application directory and files so the runtime user cannot modify them. Production does not inherit development tools.
+- The application, dependency manifests, frontend build, and production server are not implemented yet. The production target currently only prints the Python version and exits; it is not a runnable application release. Replace this explicit placeholder with the selected production server and install locked runtime dependencies when adding the Django application.
+- `.dockerignore` excludes local environments, secrets, Git metadata, and assignment/agent documentation from the build context.
+- The production server and container orchestration remain to be selected. Container packaging does not itself select Kubernetes or a cloud platform.
+
+### Container foundation validation
+
+Build targets with `docker build --target development -t linkscope:development .` and `docker build --target production -t linkscope:production .`. Smoke-test Python and uv using explicit commands, for example `docker run --rm linkscope:production uv --version`. Verify both images define UID 10001, with `/app` writable in development and non-writable in production. The devcontainer may adjust the effective development UID/GID to match the host workspace. These checks validate the image foundation, not application behavior. Also verify the devcontainer opens the workspace at `/app` and runs both lifecycle hooks.
 
 ## Technology and Runtime Constraints
 
