@@ -20,6 +20,12 @@ cleanup() {
 }
 trap cleanup EXIT
 
+for image in linkscope:development linkscope:production; do
+    test "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.title"}}' "${image}")" = "LinkScope"
+    test "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.description"}}' "${image}")" = \
+        "Network resilience analysis for a European backbone network and its connected sites and data centers."
+done
+
 wait_for_http() {
     local container=$1
     local port=$2
@@ -45,6 +51,7 @@ docker run --detach --name "${development}" \
     --mount "type=bind,source=${PWD},target=/app,readonly" \
     --env DJANGO_SECRET_KEY --env UV_PROJECT_ENVIRONMENT=/tmp/linkscope-venv \
     --publish 127.0.0.1:2158:2158 linkscope:development
+docker exec "${development}" gh --version
 docker exec "${development}" uv sync --locked
 docker exec "${development}" uv run --locked python manage.py check
 docker exec "${development}" uv run --locked python manage.py test linkscope
