@@ -2,6 +2,12 @@
 # Shared Python/uv foundation for development and production builds.
 FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS base
 
+LABEL org.opencontainers.image.title="LinkScope" \
+    org.opencontainers.image.description="Network resilience analysis for a European backbone network and its connected sites and data centers." \
+    org.opencontainers.image.url="https://github.com/fr3nch13/qsp137sa" \
+    org.opencontainers.image.documentation="https://github.com/fr3nch13/qsp137sa#readme" \
+    org.opencontainers.image.source="https://github.com/fr3nch13/qsp137sa"
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     UV_PYTHON_DOWNLOADS=never \
@@ -16,7 +22,7 @@ RUN groupadd --gid 10001 app \
 FROM base AS development
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates curl git \
+    && apt-get install -y --no-install-recommends ca-certificates curl gh git \
     && rm -rf /var/lib/apt/lists/*
 
 USER app
