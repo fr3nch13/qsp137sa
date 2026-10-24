@@ -53,6 +53,13 @@ The expected merged baseline is **37 nodes, 55 links, and 391 demands totaling 2
 
 Passing scaffold CI does not prove network-analysis correctness or production readiness.
 
+## Future / proposed changes
+
+These are proposals for evaluation, not implemented capabilities or additions to the initial assignment scope.
+
+- **Authentication and perimeter protection:** Confirm the intended users and deployment exposure. Add authentication and authorization if shared access requires them; evaluate a Web Application Firewall (WAF), request rate limits, and denial-of-service (DoS/DDoS) protection if justified by the hosting environment and project scope. Rate limiting can reduce abusive requests and expensive analysis workloads; volumetric DDoS protection generally requires upstream hosting/CDN support. These controls supplement application protection but do not replace authentication or authorization.
+- **More granular CI execution:** Avoid unnecessary image rebuilds and publication for documentation-only changes, such as `.github/*.md`. Keep lightweight checks where appropriate, and build/test images when application, dependency, container, or relevant CI inputs change. Preserve release-tag builds and ensure the required `test` check still reports a result for documentation-only PRs rather than leaving branch protection waiting on a skipped workflow.
+
 ## Steering examples to substantiate
 
 Confirm these against conversation history and commits before presenting. For each, show what AI proposed, what the author changed, why, and the resulting evidence.
