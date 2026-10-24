@@ -2,6 +2,13 @@
 
 ## Open
 
+### Upgrade Actions runtimes after the first PR run
+
+- **Status:** Implemented; repeat CI validation pending
+- [x] Upgrade checkout, artifact transfer, and Docker actions to Node.js 24-native releases in both workflows.
+- [x] Preserve existing triggers, permissions, image tags, and artifact transfer behavior.
+- [ ] Validate workflows locally and confirm the pushed PR run passes without deprecated-runtime warnings.
+
 ### Review F1: Fresh-checkout devcontainer environment
 
 - **Status:** Complete; host initialization validated
