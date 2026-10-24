@@ -1,0 +1,27 @@
+{
+    "name": "LinkScope",
+    "build": {
+        "dockerfile": "../Dockerfile",
+        "target": "development"
+    },
+    "workspaceMount": "source=${localWorkspaceFolder},target=/app,type=bind",
+    "workspaceFolder": "/app",
+    "mounts": [
+        "source=linkscope-home-${devcontainerId},target=/home/app,type=volume"
+    ],
+    "initializeCommand": [
+        "sh", "-c", "umask 077 && touch \"$1/.env\"",
+        "--", "${localWorkspaceFolder}"
+    ],
+    "runArgs": [
+        "--env-file", "${localWorkspaceFolder}/.env.default",
+        "--env-file", "${localWorkspaceFolder}/.env"
+    ],
+    "forwardPorts": [2158],
+    "updateRemoteUserUID": true,
+    "overrideCommand": false,
+    "waitFor": "postCreateCommand",
+    "postCreateCommand": "bash .devcontainer/post_create.sh",
+    "postStartCommand": "bash .devcontainer/post_start.sh",
+    "remoteUser": "app"
+}

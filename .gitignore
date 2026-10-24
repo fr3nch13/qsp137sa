@@ -1,0 +1,12 @@
+# Ignore local Python artifacts and private configuration; keep the shared template.
+.venv/
+.ruff_cache/
+__pycache__/
+*.py[cod]
+.env
+.env.*
+!.env.default
+.devcontainer/*
+!.devcontainer/devcontainer.json
+!.devcontainer/post_create.sh
+!.devcontainer/post_start.sh
