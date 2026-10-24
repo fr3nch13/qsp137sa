@@ -40,9 +40,13 @@ TBD
 - Keep documentation concise and close to the code it describes
 - For every file format that can support comments, ensure there is a header or top-level comment explaining the file's purpose and usage
 - Review the `README.md` and inline comments for relevant sections and context before making changes
-- Keep `README.md` focused on the project overview, supported capabilities, and available options such as environments, storage backends, and container image types. It should be written for the end user.
-- Describe README options at a high level without internal classes, file paths, environment variable names, commands, or CI/CD implementation details
+- Treat `README.md` as the project's front door for end users: explain its purpose, supported capabilities, prerequisites, how to run and use it, expected results, and relevant user-facing options.
+- Include a concise, copyable startup command and the configuration needed to run it safely. Keep option descriptions high-level; omit internal classes, architecture, and CI/CD implementation details.
+- Describe actual behavior honestly; distinguish planned features from supported ones. Retain brief user-impacting safety and production limitations, including those explicitly required by the assignment, without turning the README into a progress report.
+- Keep interview preparation, slide outlines, steering history, task checklists, and detailed production-readiness tracking out of the README, including links whose only purpose is to direct users to that internal material.
+- Include required data attribution and link to user documentation, support, or licensing only where applicable; do not invent missing resources.
 - Store development setup, architecture, exact configuration, implementation details, validation commands, and release mechanics in `.github/project-context.md`
+- Store presentation topics, panel questions, and detailed production-concern discussions in `docs/slideshow/interview-preparation.md`.
 - Common locations: `README.md`, `.github/project-context.md`, inline comments, and module-level docs
 
 ## Infrastructure as Code Standards
