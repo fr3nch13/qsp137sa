@@ -3,6 +3,7 @@
 import json
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 from image_tag import PERSISTENT_BRANCHES, branch_tag
@@ -33,29 +34,25 @@ def main() -> None:
     if tag in PERSISTENT_BRANCHES:
         raise ValueError(f"The {tag!r} image tag is protected from automatic deletion")
 
-    # A package that has never been published is a normal no-op; other API failures are not.
-    packages = json.loads(
-        subprocess.check_output(
+    # Query the known package, not the owner's account-wide package inventory.
+    try:
+        response = subprocess.check_output(
             [
                 "gh",
                 "api",
                 "--paginate",
                 "--slurp",
-                "users/fr3nch13/packages?package_type=container&per_page=100",
+                f"{PACKAGE}/versions?per_page=100",
             ],
             text=True,
         )
-    )
-    if not any(package["name"] == "qsp137sa" for page in packages for package in page):
-        print("No qsp137sa package exists; nothing to delete.")
-        return
-
-    pages = json.loads(
-        subprocess.check_output(
-            ["gh", "api", "--paginate", "--slurp", f"{PACKAGE}/versions?per_page=100"],
-            text=True,
+    except subprocess.CalledProcessError as error:
+        print(
+            f"Failed to list versions for {PACKAGE}: {error.output or 'no response body'}",
+            file=sys.stderr,
         )
-    )
+        raise
+    pages = json.loads(response)
     candidates = deletion_candidates(
         [version for page in pages for version in page], tag
     )
