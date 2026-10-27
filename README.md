@@ -109,9 +109,9 @@ Set `LINKSCOPE_IMAGE_TAG` for Compose, or replace `main` in the Docker run comma
 
 ## Data sources and attribution
 
-- **Backbone:** The `nobel-eu` network from [SNDlib, the Survivable Network Design Library](https://sndlib.put.poznan.pl/), using the native-text copy from the [sikorski-as/sndlib mirror](https://github.com/sikorski-as/sndlib/blob/master/native/nobel-eu/nobel-eu.txt) as the provisionally selected source. It describes 28 cities, 41 links, and 378 traffic demands.
+- **Backbone:** The `nobel-eu` network from [SNDlib, the Survivable Network Design Library](https://sndlib.put.poznan.pl/), using the native-text copy from the [sikorski-as/sndlib mirror](https://github.com/sikorski-as/sndlib/blob/master/native/nobel-eu/nobel-eu.txt) because the official download endpoints were unavailable. It describes 28 cities, 41 links, and 378 traffic demands.
 - **Sites:** The `sites.csv` table supplied in the [Quantum Sky assignment instructions](docs/Quantum_Sky_Project_137_Software%20Engineering%20Assignment.md), defining nine additional sites, their types, attachment points, and access-link capacities. Additional traffic demands follow the assignment's rules.
 - **Map:** © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright), displayed using [Leaflet](https://leafletjs.com/). Attribution is also shown on the map.
 - **AI assistance:** An AI assistant using Copilot SDK in VS Code assisted with implementation, documentation, and verification under the project author's direction.
 
-The backend loads these as separate files and merges them in memory. The backbone snapshot is provisional; official provenance and permitted-use confirmation remain unresolved. Retrieval metadata and checksum are recorded with the [local inputs](data/README.md).
+The backend loads these as separate files and merges them in memory. Quantum Sky approved using this mirrored snapshot for the assignment. Retrieval metadata and checksum are recorded with the [local inputs](data/README.md).
