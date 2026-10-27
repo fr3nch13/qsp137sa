@@ -8,3 +8,4 @@ services:
       - "127.0.0.1:2158:2158"
     environment:
       DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY:-django-insecure-linkscope-local-development-only-not-for-production}"
+  
