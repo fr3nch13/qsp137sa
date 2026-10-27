@@ -2,6 +2,60 @@
 
 ## Open
 
+### Bundled frontend and API milestones
+
+- **Status:** Architecture documented on 2026-10-27; implementation pending.
+- **Scope:** One shipped image and one origin on port 2158, React at `/`, Django REST API under `/api`, Gunicorn retained. No Vite/HMR, extra server, service split, or CI path filters.
+- [x] Record architecture, source-control policy, local rebuild workflow, trade-offs, and future evolution in the handoff, project context, and interview notes.
+
+#### M1: Frontend source and build foundation
+
+- [ ] Establish React/TypeScript source layout and minimal build tooling without Vite; commit npm manifests, lockfile, build configuration, and authored assets.
+- [ ] Add `npm run build` and a build-watch command, plus lint, type-check, and focused frontend tests. Document exact directories and commands.
+- [ ] Ignore dependencies, compiled bundles, and collected static output in Git; ensure clean builds do not rely on existing generated files.
+
+#### M2: Same-origin Django serving
+
+- **Prerequisite:** M1 for generated frontend assets.
+- [ ] Wire Django routing and static-file serving for `/` and `/api`; retain Gunicorn for production without Apache/nginx or CORS.
+- [ ] Define/test the initial API response/error contract. Keep unknown API routes and missing assets out of the frontend HTML fallback.
+- [ ] Test frontend HTML/assets and API responses with debug disabled, correct content types, and appropriate development versus production caching.
+
+#### M3: Devcontainer rebuild workflow
+
+- **Prerequisites:** M1 and M2 for end-to-end verification.
+- [ ] Provide Node/npm in the development target; preserve workspace mounts, lifecycle hooks, Python reload, and existing startup/error reporting.
+- [ ] Support initial build and explicit rebuild/watch inside the devcontainer, serving changed assets on port 2158 without an image push or a second frontend server.
+- [ ] Verify a source edit, rebuild, and manual browser refresh show the change without stale assets; verify repeat startup and clear build-failure reporting.
+
+#### M4: Single production image
+
+- **Prerequisites:** M1 and M2.
+- [ ] Add the Node application-build stage using locked `npm ci` and the frontend build; copy only required build output into the Python production runtime.
+- [ ] Preserve development/production target separation, non-root permissions, runtime secrets, loopback-only Compose publishing, and explicit AMD64 selection.
+- [ ] Verify a clean build without local bundles, frontend/API HTTP responses through Gunicorn, and absence of Node/npm in the production runtime.
+
+#### M5: CI and bundled-image verification
+
+- **Prerequisites:** M3 and M4.
+- [ ] Extend the existing single CI flow with frontend lint, type-check, tests, and reproducible build checks; preserve triggers, required checks, artifact publication, and no path filtering.
+- [ ] Extend image smoke tests to verify frontend HTML/assets, API success/error behavior, and development rebuild support while retaining existing checks.
+- [ ] Validate Compose startup and browser requests on a Docker host, record actual evidence, and distinguish environment-blocked checks from passed checks.
+
+#### M6: Network application delivery
+
+- **Prerequisites:** Existing dataset/loader tasks for real topology; M2 for API wiring; M1 for UI work. Synthetic model tests can proceed independently.
+- [ ] Complete the local input/merged-model tasks below and verify 37 nodes, 55 links, 391 demands, and 2,068 demand units.
+- [ ] Implement and independently test minimum-hop equal-split routing, transit restrictions, utilization/top-five ranking, criticality, and failed-node/link reporting.
+- [ ] Connect analysis to the REST API and React map/controls; test fail/restore without page reload, accessible non-color indicators, and explicit invalid-input errors.
+
+#### M7: Delivery documentation and evidence
+
+- **Prerequisites:** M5 and M6 for completed-application claims.
+- [ ] Update user instructions only as features become available; keep exact development commands in project context.
+- [ ] Record measured results, remaining limitations, and end-to-end evidence in interview notes; retain future image/repository splits and CI filtering as conditional proposals.
+- **Review:** Documentation planning only in this change; no frontend, server, dependency, ignore-file, Dockerfile, or CI implementation has been performed.
+
 ### Docker Compose startup
 
 - **Status:** Implemented; configuration validated, user confirmed startup on macOS
