@@ -47,6 +47,23 @@ wait_for_http() {
     return 1
 }
 
+check_frontend_api() {
+    local port=$1
+    local base="http://127.0.0.1:${port}"
+    curl --fail --silent --show-error "${base}/" | grep -q 'id="root"'
+    curl --fail --silent --show-error "${base}/api" | python -c '
+import json, sys
+assert json.load(sys.stdin) == {"message": "Hello, world!"}
+'
+    for asset in app.js app.css logo.svg; do
+        curl --fail --silent --show-error --output /dev/null "${base}/assets/${asset}"
+    done
+    for missing in /api/unknown /assets/missing.js; do
+        test "$(curl --silent --output /dev/null --write-out '%{http_code}' \
+            "${base}${missing}")" = 404
+    done
+}
+
 docker run --detach --name "${development}" \
     --mount "type=bind,source=${PWD},target=/app,readonly" \
     --env DJANGO_SECRET_KEY --env UV_PROJECT_ENVIRONMENT=/tmp/linkscope-venv \
@@ -72,11 +89,13 @@ docker exec "${development}" uv run --locked python manage.py test linkscope
 docker exec "${development}" bash .devcontainer/post_start.sh
 docker exec "${development}" bash .devcontainer/post_start.sh
 wait_for_http "${development}" 2158
+check_frontend_api 2158
 docker exec "${development}" test -s /home/app/.cache/linkscope/runserver.log
 
 docker run --detach --name "${production}" --env DJANGO_SECRET_KEY \
     --publish 127.0.0.1:2159:2158 linkscope:production
 wait_for_http "${production}" 2159
+check_frontend_api 2159
 docker exec "${production}" python manage.py check
 docker exec "${production}" python manage.py test linkscope
 docker exec "${production}" python -c '
