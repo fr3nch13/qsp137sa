@@ -148,3 +148,23 @@ jobs:
           docker load --input "${RUNNER_TEMP}/production.tar"
           docker tag linkscope:production "${IMAGE}:${IMAGE_TAG}"
           docker push "${IMAGE}:${IMAGE_TAG}"
+
+  cleanup:
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+    concurrency:
+      group: ghcr-untagged-cleanup
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Delete untagged image versions last updated at least 24 hours ago
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python .github/ci/cleanup_untagged_images.py
