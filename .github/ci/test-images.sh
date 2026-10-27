@@ -52,6 +52,20 @@ docker run --detach --name "${development}" \
     --env DJANGO_SECRET_KEY --env UV_PROJECT_ENVIRONMENT=/tmp/linkscope-venv \
     --publish 127.0.0.1:2158:2158 linkscope:development
 docker exec "${development}" gh --version
+docker exec "${development}" node --version
+docker exec "${development}" npm --version
+# The source mount is read-only; install/build in a container-owned copy.
+docker exec "${development}" bash -c '
+    set -euo pipefail
+    mkdir /tmp/linkscope-frontend
+    cp -R /app/frontend/. /tmp/linkscope-frontend/
+    cd /tmp/linkscope-frontend
+    npm ci
+    npm run lint
+    npm run typecheck
+    npm test
+    npm run build
+'
 docker exec "${development}" uv sync --locked
 docker exec "${development}" uv run --locked python manage.py check
 docker exec "${development}" uv run --locked python manage.py test linkscope
@@ -67,12 +81,17 @@ docker exec "${production}" python manage.py check
 docker exec "${production}" python manage.py test linkscope
 docker exec "${production}" python -c '
 import os
+import shutil
 from pathlib import Path
 assert os.getuid() == 10001
 assert Path.home() == Path("/home/app")
 assert not os.access("/app", os.W_OK)
 assert not Path("/app/.env").exists()
 assert not Path("/app/.git").exists()
+assert shutil.which("node") is None
+assert shutil.which("npm") is None
+for asset in ("index.html", "assets/app.js", "assets/app.css"):
+    assert (Path("/app/frontend/dist") / asset).stat().st_size > 0
 import django
 from topohub.providers.sndlib import SNDlibGenerator
 '
