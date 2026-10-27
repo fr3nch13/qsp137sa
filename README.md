@@ -2,11 +2,11 @@
 
 LinkScope is a network resilience analysis application for operations teams responsible for a European backbone network and its connected sites and data centers. It is an application within Project 137, a division of Quantum Sky.
 
-The planned application will help teams explore network weak points, understand which links carry the most traffic, and assess the impact of a node or link outage. Its network view is intended to show critical infrastructure, link utilization, and outage impacts.
+The application helps teams explore network weak points, understand which links carry the most traffic, and assess the impact of a node or link outage. Its network view shows critical infrastructure, link utilization, and outage impacts.
 
 The project is based on the `nobel-eu` network from the [Survivable Network Design Library (SNDlib)](https://sndlib.put.poznan.pl/), with additional operations sites and data centers.
 
-> **Availability:** The React homepage displays a greeting fetched from the Django API. The backend supports network loading, traffic/utilization analysis, and single-node/link failure reports through JSON endpoints; these results are not yet shown in the frontend. The interactive map and controls remain unimplemented. The demonstration is local-only and has no authentication.
+> **Availability:** The homepage shows a European network map, utilization, and critical elements with reasons. You can fail any one node or link, inspect its impact, and restore the baseline without reloading. The demonstration is local-only and has no authentication. These controls require an image published with the frontend changes; older images may show only the baseline or greeting.
 
 ## Run the current demonstration
 
@@ -39,11 +39,19 @@ Compose downloads the image; it does not build the application locally. By defau
 
 The image targets Linux AMD64. It runs natively on AMD64 hosts; ARM64 hosts, including Apple Silicon Macs, need AMD64 emulation enabled (provided by Docker Desktop). Emulation can be slower than native execution.
 
-Open **<http://localhost:2158/>**. The page should say:
+Open **<http://localhost:2158/>**. The page shows **37 nodes, 55 links, 391 demands, and 2,068 demand units**, with the baseline network map and findings fetched from Django.
 
-> Hello, world!
+The map initially fits the network. Drag to pan and use its +/− controls to zoom in small quarter-level steps. Cities and sites use different shapes; critical nodes have an asterisk, critical links are dashed, and the five most utilized links have thicker lines and numbered markers. Simulation controls and baseline critical elements appear to the left of the map on tablet-sized and larger screens. The baseline status/failure impact report and utilization findings sit side by side directly beneath the map, within the right-hand column; below 768px, the panels stack. They provide load/capacity/utilization and criticality reasons in text. Expand the critical-node list for details. Zoom in to separate nearby labels; site locations are illustrative offsets, not real facility coordinates.
 
-This message comes from the same application's `/api` endpoint. If the request fails, the page displays an error instead. Backend analysis is available at `/api/network` (topology, baseline and criticality) and `/api/analysis` (baseline), or for example `/api/analysis?kind=link&id=L12` for a single failure report. Omit the query parameters to return to the baseline. These endpoints ship with the backend changes; older published images may only support the greeting.
+To simulate an outage, choose **Node** or **Link**, select an **Element**, and press **Fail selected**. The selectors and buttons work with a keyboard. Only one failure is active; failing another element replaces it. The report separates demands lost at failed-node endpoints from other undeliverable demands and lists every overloaded link with its load, capacity, and utilization. Expand either demand category to inspect individual demands. For example, failing **L12 (Berlin–Hamburg)** overloads **L26 (Frankfurt–Munich)** to approximately **128.30%**.
+
+The left sidebar shows baseline critical elements first, with both node/link lists initially collapsed, followed by the simulation controls. These criticality reasons describe what happens if each listed element fails individually, not a current outage alarm.
+
+The map marks the failed element with **× FAILED**, fades links incident to a failed node, and marks overloaded links with **! OVERLOAD**. Rankings and loads describe the displayed scenario; the critical-element list and asterisks/dashes continue to describe baseline single-failure risks. Press **Restore baseline** to clear the failure immediately. Your simulation is local to this page and does not change another user's results. Pending requests and errors are explicit, with previous results clearly retained until a new result succeeds.
+
+The Leaflet map uses standard OpenStreetMap tiles. The background requires internet access and sends ordinary browser tile requests to OpenStreetMap; no API key is needed. If tiles fail, a warning appears but the network overlays and findings remain available. Do not bulk-download or prefetch tiles; usage is subject to the [OpenStreetMap tile policy](https://operations.osmfoundation.org/policies/tiles/).
+
+If network analysis cannot load, the page shows an error rather than sample results. Backend analysis is available at `/api/network` (topology, baseline and criticality) and `/api/analysis` (baseline), or for example `/api/analysis?kind=link&id=L12` for a single failure report. Omit the query parameters to return to the baseline.
 
 View logs:
 
@@ -99,11 +107,13 @@ Images are available in the [GitHub container package](https://github.com/fr3nch
 | `dev` | Development preview channel. |
 | A release version, such as `2.4.11` | A versioned release, once that Git tag has been published successfully. |
 
-Set `LINKSCOPE_IMAGE_TAG` for Compose, or replace `main` in the Docker run command, with the desired available tag. The greeting demonstration is available in images published with this change; older images may still show the plain status page. A versioned image does not imply production readiness.
+Set `LINKSCOPE_IMAGE_TAG` for Compose, or replace `main` in the Docker run command, with the desired available tag. Older images may show the greeting or plain status page rather than the network map. A versioned image does not imply production readiness.
 
 ## Data sources and attribution
 
 - **Backbone:** The `nobel-eu` network from [SNDlib, the Survivable Network Design Library](https://sndlib.put.poznan.pl/), using the native-text copy from the [sikorski-as/sndlib mirror](https://github.com/sikorski-as/sndlib/blob/master/native/nobel-eu/nobel-eu.txt) as the provisionally selected source. It describes 28 cities, 41 links, and 378 traffic demands.
 - **Sites:** The `sites.csv` table supplied in the [Quantum Sky assignment instructions](docs/Quantum_Sky_Project_137_Software%20Engineering%20Assignment.md), defining nine additional sites, their types, attachment points, and access-link capacities. Additional traffic demands follow the assignment's rules.
+- **Map:** © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright), displayed using [Leaflet](https://leafletjs.com/). Attribution is also shown on the map.
+- **AI assistance:** An AI assistant using Copilot SDK in VS Code assisted with implementation, documentation, and verification under the project author's direction.
 
 The backend loads these as separate files and merges them in memory. The backbone snapshot is provisional; official provenance and permitted-use confirmation remain unresolved. Retrieval metadata and checksum are recorded with the [local inputs](data/README.md).

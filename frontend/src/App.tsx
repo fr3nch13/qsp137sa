@@ -1,25 +1,26 @@
-// Initial frontend shell; network-analysis functionality is not implemented yet.
+// Load the baseline network into the shared branded application shell.
 import { useEffect, useState } from "react";
-import { fetchGreeting } from "./api";
+import { fetchNetwork, type Network } from "./api";
+import { NetworkSummary, NetworkWorkspace } from "./NetworkWorkspace";
 
-type Greeting =
+type NetworkState =
   | { status: "loading" }
-  | { status: "ready"; message: string }
+  | { status: "ready"; network: Network }
   | { status: "error"; message: string };
 
 export function App() {
-  const [greeting, setGreeting] = useState<Greeting>({ status: "loading" });
+  const [state, setState] = useState<NetworkState>({ status: "loading" });
   useEffect(() => {
     const controller = new AbortController();
-    fetchGreeting(controller.signal).then(
-      (message) => {
+    fetchNetwork(controller.signal).then(
+      (network) => {
         if (!controller.signal.aborted) {
-          setGreeting({ status: "ready", message });
+          setState({ status: "ready", network });
         }
       },
       (error: unknown) => {
         if (!controller.signal.aborted) {
-          setGreeting({
+          setState({
             status: "error",
             message:
               error instanceof Error ? error.message : "API request failed.",
@@ -42,23 +43,31 @@ export function App() {
         </div>
       </header>
       <main className="layout-width">
-        <section className="welcome" aria-labelledby="welcome-heading">
-          <h2 id="welcome-heading">Network workspace</h2>
-          <p>
-            Network analysis and the interactive map are not implemented yet.
-          </p>
-        </section>
-        <section className="api-status" aria-label="API connection">
-          {greeting.status === "error" ? (
+        <div className="workspace-heading workspace-columns">
+          <section className="welcome" aria-labelledby="welcome-heading">
+            <h2 id="welcome-heading">Network workspace</h2>
+            <p>
+              Explore baseline traffic and the impact of losing network
+              elements.
+            </p>
+          </section>
+          {state.status === "ready" && (
+            <NetworkSummary network={state.network} />
+          )}
+        </div>
+        <section
+          className="network-workspace"
+          aria-label="Network findings"
+          aria-busy={state.status === "loading"}
+        >
+          {state.status === "error" ? (
             <p role="alert">
-              Could not load the API greeting: {greeting.message}
+              Could not load the network: {state.message} Refresh to try again.
             </p>
+          ) : state.status === "ready" ? (
+            <NetworkWorkspace network={state.network} />
           ) : (
-            <p role="status">
-              {greeting.status === "ready"
-                ? greeting.message
-                : "Loading API greeting..."}
-            </p>
+            <p role="status">Loading network and baseline findings...</p>
           )}
         </section>
       </main>

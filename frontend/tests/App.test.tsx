@@ -12,7 +12,7 @@ test("shell renders an accessible heading and implementation status", () => {
   assert.match(html, /src="\/assets\/logo.svg"/);
   assert.match(html, /<h1>LinkScope<\/h1>/);
   assert.match(html, /Network resilience analysis/);
-  assert.match(html, /not implemented yet/);
-  assert.match(html, /Loading API greeting/);
+  assert.match(html, /Loading network and baseline findings/);
+  assert.match(html, /aria-busy="true"/);
   assert.doesNotMatch(html, /Hello, world!/);
 });

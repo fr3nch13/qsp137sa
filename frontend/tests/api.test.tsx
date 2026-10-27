@@ -1,46 +1,146 @@
-// Exercise the greeting API contract and explicit failure cases.
+// Verify network response validation before data reaches the map.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { fetchGreeting } from "../src/api";
+import { type Analysis, fetchAnalysis, fetchNetwork } from "../src/api";
+import { networkFixture } from "./network-fixture";
 
-test("greeting comes from the same-origin API response", async (t) => {
+test("network data comes from the same-origin API with cancellation", async (t) => {
   const controller = new AbortController();
   t.mock.method(
     globalThis,
     "fetch",
     async (url: RequestInfo | URL, options?: RequestInit) => {
-      assert.equal(url, "/api");
+      assert.equal(url, "/api/network");
       assert.equal(options?.signal, controller.signal);
-      return Response.json({ message: "A message supplied by the backend" });
+      return Response.json(networkFixture);
     },
   );
-  assert.equal(
-    await fetchGreeting(controller.signal),
-    "A message supplied by the backend",
+  assert.deepEqual(await fetchNetwork(controller.signal), networkFixture);
+});
+
+test("single failures fetch the selected element and validate separate R8 reports", async (t) => {
+  const mock = t.mock.method(globalThis, "fetch");
+  for (const failure of [
+    { kind: "node", id: "A" },
+    { kind: "link", id: "L1" },
+  ] as const) {
+    const result: Analysis = {
+      failure,
+      links: [],
+      top_five: [],
+      overloaded: [],
+      disconnected: failure.kind === "link",
+      undeliverable: failure.kind === "link" ? networkFixture.demands : [],
+      failed_endpoint_demands:
+        failure.kind === "node" ? networkFixture.demands : [],
+    };
+    const controller = new AbortController();
+    mock.mock.mockImplementation(async (url, options) => {
+      assert.equal(url, `/api/analysis?kind=${failure.kind}&id=${failure.id}`);
+      assert.equal(options?.signal, controller.signal);
+      return Response.json(result);
+    });
+    assert.deepEqual(
+      await fetchAnalysis(networkFixture, failure, controller.signal),
+      result,
+    );
+  }
+});
+
+test("analysis rejects wrong scenarios, surviving links, demand categories and overloads", async (t) => {
+  const failure = { kind: "node", id: "A" } as const;
+  const valid: Analysis = {
+    failure,
+    links: [],
+    top_five: [],
+    overloaded: [],
+    disconnected: false,
+    undeliverable: [],
+    failed_endpoint_demands: networkFixture.demands,
+  };
+  const mock = t.mock.method(globalThis, "fetch");
+  for (const result of [
+    { ...valid, failure: null },
+    { ...valid, failure: { kind: "node", id: "DC" } },
+    { ...valid, links: networkFixture.baseline.links },
+    { ...valid, failed_endpoint_demands: [] },
+    { ...valid, undeliverable: networkFixture.demands },
+    { ...valid, overloaded: networkFixture.baseline.links },
+    { ...valid, top_five: networkFixture.baseline.top_five },
+    { ...valid, disconnected: "no" },
+    {
+      ...valid,
+      failed_endpoint_demands: [{ ...networkFixture.demands[0], units: 99 }],
+    },
+  ]) {
+    mock.mock.mockImplementation(async () => Response.json(result));
+    await assert.rejects(
+      fetchAnalysis(networkFixture, failure, new AbortController().signal),
+      /invalid analysis|does not match/,
+    );
+  }
+  mock.mock.mockImplementation(async () => new Response("", { status: 500 }));
+  await assert.rejects(
+    fetchAnalysis(networkFixture, failure, new AbortController().signal),
+    /HTTP 500/,
   );
 });
 
-test("greeting rejects HTTP, network, JSON, and contract errors", async (t) => {
+test("network rejects HTTP, network, JSON and invalid contract responses", async (t) => {
   const mock = t.mock.method(globalThis, "fetch");
+  const invalid = [
+    { ...networkFixture, criticality: [] },
+    {
+      ...networkFixture,
+      nodes: [...networkFixture.nodes, networkFixture.nodes[0]],
+    },
+    {
+      ...networkFixture,
+      nodes: [{ ...networkFixture.nodes[0], latitude: 100 }],
+    },
+    {
+      ...networkFixture,
+      links: [{ ...networkFixture.links[0], target: "missing" }],
+    },
+    { ...networkFixture, baseline: { ...networkFixture.baseline, links: [] } },
+    {
+      ...networkFixture,
+      criticality: [
+        { kind: "node", id: "A", critical: true, reasons: ["unknown"] },
+      ],
+    },
+    {
+      ...networkFixture,
+      baseline: {
+        ...networkFixture.baseline,
+        top_five: [{ ...networkFixture.baseline.top_five[0], load: "bad" }],
+      },
+    },
+    { message: "Hello" },
+  ];
+  for (const data of invalid) {
+    mock.mock.mockImplementation(async () => Response.json(data));
+    await assert.rejects(
+      fetchNetwork(new AbortController().signal),
+      /invalid network/,
+    );
+  }
   for (const [response, error] of [
     [new Response("", { status: 503 }), /HTTP 503/],
     [new Response("<html>wrong route</html>"), /non-JSON/],
-    [Response.json({ error: "not a greeting" }), /invalid greeting/],
-    [Response.json({ message: 123 }), /invalid greeting/],
-    [Response.json({ message: " " }), /invalid greeting/],
     [
       new Response("{", { headers: { "content-type": "application/json" } }),
       /JSON/,
     ],
   ] as const) {
     mock.mock.mockImplementation(async () => response);
-    await assert.rejects(fetchGreeting(new AbortController().signal), error);
+    await assert.rejects(fetchNetwork(new AbortController().signal), error);
   }
   mock.mock.mockImplementation(async () => {
     throw new Error("Network unavailable");
   });
   await assert.rejects(
-    fetchGreeting(new AbortController().signal),
+    fetchNetwork(new AbortController().signal),
     /Network unavailable/,
   );
 });
