@@ -142,11 +142,15 @@ class NetworkAPITests(SimpleTestCase):
                     "linkscope.network_api.load_topology",
                     side_effect=InputError(Path("sites.csv"), 3, "bad capacity"),
                 ),
-                self.assertLogs("linkscope.network_api", level="ERROR"),
+                self.assertLogs("linkscope.network_api", level="ERROR") as logs,
             ):
                 response = self.get(path)
             self.assertEqual(response.status_code, 503)
-            self.assertIn("sites.csv: row 3:", response.json()["error"])
+            self.assertEqual(
+                response.json(), {"error": "Network data could not be loaded."}
+            )
+            self.assertNotIn(b"sites.csv", response.content)
+            self.assertIn("sites.csv: row 3: bad capacity", "\n".join(logs.output))
         with (
             patch(
                 "linkscope.network_api.route_traffic",

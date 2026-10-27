@@ -45,7 +45,7 @@ If network analysis cannot load, the page shows an error rather than sample resu
 
 ### Logs and input errors
 
-Invalid backbone or site input is rejected with a diagnostic formatted as `<file path>: row <physical row>: <reason>`. The server logs the diagnostic and traceback, and the API returns the diagnostic in a JSON HTTP 503 response. The browser currently shows only a generic HTTP-status error; use the server logs to find the filename, row, and validation reason.
+Invalid backbone or site input is rejected with a diagnostic formatted as `<file path>: row <physical row>: <reason>`. The diagnostic and traceback are written only to the server logs; the API returns a generic JSON HTTP 503 response without file or row details, and the browser shows a generic message ("The server could not read its network data files. Check the server logs for details."); use the server logs to find the filename, row, and validation reason.
 
 The published container sends errors to stderr and request logs to stdout. View them with:
 

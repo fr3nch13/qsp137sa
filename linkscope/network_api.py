@@ -193,9 +193,10 @@ def network_api(request: HttpRequest, resource: str) -> JsonResponse:
             "criticality": criticality,
         }
         return JsonResponse(payload)
-    except InputError as error:
+    except InputError:
+        # File/row diagnostics are logged only; never expose them to clients.
         logger.exception("Network input could not be loaded.")
-        return JsonResponse({"error": str(error)}, status=503)
+        return JsonResponse({"error": "Network data could not be loaded."}, status=503)
     except nx.NetworkXException:
         logger.exception("Network analysis failed.")
         return JsonResponse({"error": "Network analysis failed."}, status=500)

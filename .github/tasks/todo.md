@@ -183,13 +183,14 @@
 - **Architecture decision:** Explicitly select Linux AMD64 in Compose and the Docker run alternative. Retain single-platform CI and use host-provided emulation on ARM64 for the local demo; record rationale and trade-offs in the interview preparation notes. The briefly proposed multi-platform CI edits were removed before publication.
 - **Final validation:** Standalone Compose v2.40.3 rendered the explicit `linux/amd64` platform and loopback binding successfully. CI workflow and smoke-test script match their committed versions.
 
-### R2 follow-up: Browser-visible input diagnostics
+### R2 follow-up: Browser input-error messaging
 
-- **Status:** Open; backend/API diagnostics and server logging are implemented.
+- **Status:** Complete; file/row diagnostics are logged server-side only, the API returns a generic 503 body, and the browser shows a generic, user-friendly message.
+- [x] Remove file/row details from the public API 503 body (2026-10-27); backend test asserts they appear in logs but not in the response. All 45 Django tests pass.
 - [x] Recheck filename/physical-row validation: all eight topology tests passed on 2026-10-27.
 - [x] Record development/production log destinations and the frontend limitation in the interview preparation notes.
-- [ ] Display the API's input-validation diagnostic in the frontend instead of only a generic HTTP 503 error, with focused regression coverage.
-- **Requirement boundary:** R2 requires an error naming the file and row. Those details are present in loader errors, API responses, and server logs, but currently hidden in the browser. Do not describe this solely as deferred production hardening or claim browser-visible R2 compliance.
+- [x] Replace the frontend's raw `API request failed (HTTP 503)` error with a generic, user-friendly message, with focused regression coverage. Decision (2026-10-27): show "The server could not read its network data files. Check the server logs for details." for 503 instead of the file/row diagnostic; other 5xx, 4xx, and unreachable-server failures have separate plain-language messages. Verified in a real browser for initial network load and failure analysis (previous results retained); 16 frontend tests, lint, and build pass.
+- **Requirement boundary:** R2 requires an error naming the file and row. Those details are present in loader errors and server logs only; the API returns a generic 503 body and the browser shows a generic message. Do not claim browser-visible file/row diagnostics.
 
 ### Upgrade Actions runtimes after the first PR run
 

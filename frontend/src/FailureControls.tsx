@@ -85,8 +85,8 @@ export function FailureControls({
       </p>
       {error && (
         <p role="alert">
-          Could not analyze failure: {error} Previous results remain displayed.
-          Try again or restore baseline.
+          Could not analyze the failure. {error} Previous results remain
+          displayed. Try again or restore baseline.
         </p>
       )}
       <p className="scope-note">

@@ -46,10 +46,19 @@ Audience: an operations lead and engineers. Explain operational results first, t
 
 Requirement: **"The application shall reject bad input with an error that names the file and the row."**
 
-- **Implemented:** The local input loader rejects invalid backbone/CSV data with `InputError`, formatted as `<file path>: row <physical row>: <reason>`. The API logs the exception with its traceback and returns the diagnostic in a JSON HTTP 503 response.
+- **Implemented:** The local input loader rejects invalid backbone/CSV data with `InputError`, formatted as `<file path>: row <physical row>: <reason>`. The API logs the exception with its traceback and returns a generic JSON HTTP 503 (`{"error": "Network data could not be loaded."}`); file paths and rows are never exposed to clients.
 - **Log locations:** Devcontainer startup appends combined server output to `$HOME/.cache/linkscope/runserver.log` and container output. Production sends errors to container stderr, available through `docker compose logs`; there is no dedicated persistent production application log file or application-managed retention.
 - **Verification (2026-10-27):** All eight topology tests passed using `.venv/bin/python manage.py test linkscope.test_topology --verbosity 1`, including invalid backbone/CSV cases asserting the filename and exact physical row.
-- **Open requirement gap:** The frontend currently replaces non-success API responses with a generic HTTP-status error, hiding the returned file-and-row diagnostic. Backend/API/logging support is implemented, but browser-visible R2 diagnostics remain incomplete. Track this as assignment completeness, not merely production hardening.
+- **Browser message (decision, 2026-10-27):** The frontend shows a generic, user-friendly message for input failures ("The server could not read its network data files. Check the server logs for details.") rather than raw file paths or HTTP codes. Other server errors, client errors, and unreachable-server failures have their own plain-language messages. The file-and-row diagnostic is written only to the server logs, so internal paths are not exposed through the public API. If asked, explain that R2's file/row error is delivered to the operator through the logs.
+- **Live error demo (devcontainer, rehearsed 2026-10-27):** The loader reads the data files on every request, so no restart is needed.
+  1. Open `http://127.0.0.1:2158/` and show the working baseline.
+  2. Break one value, e.g. set the OPS-WEST access capacity to `-1`: `sed -i '4s/,40$/,-1/' data/sites.csv`
+  3. Refresh the browser: it shows "Could not load the network. The server could not read its network data files. Check the server logs for details. Refresh to try again."
+  4. Show the API hides internals: `curl -s -w ' %{http_code}\n' http://127.0.0.1:2158/api/network` returns `{"error": "Network data could not be loaded."} 503`.
+  5. Show the operator diagnostic: `grep InputError ~/.cache/linkscope/runserver.log | tail -1` shows `/app/data/sites.csv: row 4: invalid numeric value '-1'`.
+  6. Restore and refresh: `git checkout -- data/sites.csv`; the baseline returns.
+  - To show the failure-analysis path instead, load the page first, then break the file and press **Fail selected**: the previous results stay displayed with the same generic message.
+  - The published production image bakes the data files in; this demo is not rehearsed against the production container.
 
 ### Application delivery status
 
