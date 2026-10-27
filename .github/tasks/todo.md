@@ -94,7 +94,7 @@
 #### M6: Network application delivery
 
 - **Priority:** This is the core assignment, not a follow-up feature. M1-M5 establish the delivery foundation; remaining implementation effort should focus on R1-R11 below, not optional infrastructure.
-- **Status:** M6a-M6c implemented and validated; M6d-M6f pending. Complete these small, independently verifiable milestones in order. Keep one application/container, the existing frontend shell, and no database.
+- **Status:** M6a-M6d implemented and validated; M6e-M6f pending. Backend M6a-M6d belongs in one PR; frontend M6e-M6f belongs in a separate PR. Stop after each milestone for user review. Keep one application/container, the existing frontend shell, and no database.
 - **Prerequisites:** M1/M2 provide frontend/API integration. The dataset-source and loader sections below retain their detailed research/implementation checklists; M6a is their application acceptance gate, not a second implementation.
 
 ##### M6a: Load and validate the real network (R1-R4)
@@ -129,11 +129,13 @@
 ##### M6d: Expose the network and analysis through the API
 
 - **Prerequisites:** M6a-M6c and M2.
-- [ ] Define a concise typed JSON contract for topology, baseline/top-five/criticality results, and one selected node/link failure with R8 results; keep frontend/backend field names consistent.
-- [ ] Validate failure type and identity explicitly; reject unknown or invalid selections with JSON errors and appropriate HTTP status codes. Surface data-loading/analysis failures without success-shaped fallbacks.
-- [ ] Keep simulations request-local; one browser's failure selection must not change another browser's baseline. Retain appropriate CSRF handling if unsafe HTTP methods are used.
-- [ ] Add API tests for baseline, node/link failure, restore/baseline equivalence, invalid requests, and independent requests.
+- [x] Define a concise typed JSON contract for topology, baseline/top-five/criticality results, and one selected node/link failure with R8 results; keep frontend/backend field names consistent.
+- [x] Validate failure type and identity explicitly; reject unknown or invalid selections with JSON errors and appropriate HTTP status codes. Surface data-loading/analysis failures without success-shaped fallbacks.
+- [x] Keep simulations request-local; one browser's failure selection must not change another browser's baseline. Retain appropriate CSRF handling if unsafe HTTP methods are used.
+- [x] Add API tests for baseline, node/link failure, restore/baseline equivalence, invalid requests, and independent requests.
 - **Acceptance:** Real topology and analysis flow through Django JSON endpoints with tested output shapes; no hardcoded frontend results or separate service is needed.
+- **Review (2026-10-27):** Read-only `/api/network` exposes topology, baseline and all criticality reasons; `/api/analysis` exposes baseline or one `kind=node|link&id=...` failure. No shared simulation state or cache. Invalid/repeated/unknown query parameters return JSON 400, unknown elements 404, unsupported methods 405, input failures logged JSON 503, and NetworkX failures logged JSON 500. Greeting endpoints/frontend remain unchanged. Six real-data API tests plus prior tests pass (45 backend tests total); image smoke checks now request the new endpoints as well. Docker image execution of these new checks remains hosted validation, not a local pass. Stop here before M6e.
+- **Docker follow-up:** Both AMD64 image targets subsequently built and the complete image smoke script passed using host Docker Desktop, with alternate ports 22158/22159 to preserve the running devcontainer. New network/analysis endpoints passed through both images, including production Gunicorn. Review F1 (complete response types) and G1 (image execution) are addressed; temporary containers were cleaned up. M6e has not started.
 
 ##### M6e: Show the network map and baseline findings (R9-R10)
 
