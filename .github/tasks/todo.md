@@ -181,6 +181,14 @@
 - **Architecture decision:** Explicitly select Linux AMD64 in Compose and the Docker run alternative. Retain single-platform CI and use host-provided emulation on ARM64 for the local demo; record rationale and trade-offs in the interview preparation notes. The briefly proposed multi-platform CI edits were removed before publication.
 - **Final validation:** Standalone Compose v2.40.3 rendered the explicit `linux/amd64` platform and loopback binding successfully. CI workflow and smoke-test script match their committed versions.
 
+### R2 follow-up: Browser-visible input diagnostics
+
+- **Status:** Open; backend/API diagnostics and server logging are implemented.
+- [x] Recheck filename/physical-row validation: all eight topology tests passed on 2026-10-27.
+- [x] Record development/production log destinations and the frontend limitation in the interview preparation notes.
+- [ ] Display the API's input-validation diagnostic in the frontend instead of only a generic HTTP 503 error, with focused regression coverage.
+- **Requirement boundary:** R2 requires an error naming the file and row. Those details are present in loader errors, API responses, and server logs, but currently hidden in the browser. Do not describe this solely as deferred production hardening or claim browser-visible R2 compliance.
+
 ### Upgrade Actions runtimes after the first PR run
 
 - **Status:** Implemented; repeat CI validation pending
