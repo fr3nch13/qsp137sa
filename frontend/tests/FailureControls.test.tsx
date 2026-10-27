@@ -44,13 +44,13 @@ test("controls offer every element and distinguish pending, applied and error st
       onRestore={() => {}}
       analysis={networkFixture.baseline}
       pending={{ kind: "node", id: "A" }}
-      error="HTTP 503"
+      error="The server ran into a problem."
     />,
   );
   assert.match(html, /Analyzing failed node: A/);
   assert.match(html, /Previous results remain displayed/);
   assert.match(html, /role="alert"/);
-  assert.match(html, /HTTP 503/);
+  assert.match(html, /The server ran into a problem\./);
 });
 
 test("R8 report keeps endpoint loss, other demands and every overloaded link separate", () => {

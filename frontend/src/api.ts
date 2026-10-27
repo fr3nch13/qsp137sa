@@ -179,10 +179,23 @@ function network(value: unknown): value is Network {
   );
 }
 
+// Server details (such as input file/row diagnostics) stay in the server logs.
+function httpErrorMessage(status: number): string {
+  if (status === 503)
+    return "The server could not read its network data files. Check the server logs for details.";
+  if (status >= 500) return "The server ran into a problem.";
+  return "The server could not handle this request.";
+}
+
 async function fetchJSON(url: string, signal: AbortSignal): Promise<unknown> {
-  const response = await fetch(url, { signal });
-  if (!response.ok)
-    throw new Error(`API request failed (HTTP ${response.status}).`);
+  let response: Response;
+  try {
+    response = await fetch(url, { signal });
+  } catch (error) {
+    if (signal.aborted) throw error;
+    throw new Error("Could not reach the LinkScope server.");
+  }
+  if (!response.ok) throw new Error(httpErrorMessage(response.status));
   if (!response.headers.get("content-type")?.includes("application/json")) {
     throw new Error("API returned a non-JSON response.");
   }

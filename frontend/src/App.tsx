@@ -62,7 +62,7 @@ export function App() {
         >
           {state.status === "error" ? (
             <p role="alert">
-              Could not load the network: {state.message} Refresh to try again.
+              Could not load the network. {state.message} Refresh to try again.
             </p>
           ) : state.status === "ready" ? (
             <NetworkWorkspace network={state.network} />

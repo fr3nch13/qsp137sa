@@ -82,7 +82,7 @@ test("analysis rejects wrong scenarios, surviving links, demand categories and o
   mock.mock.mockImplementation(async () => new Response("", { status: 500 }));
   await assert.rejects(
     fetchAnalysis(networkFixture, failure, new AbortController().signal),
-    /HTTP 500/,
+    { message: "The server ran into a problem." },
   );
 });
 
@@ -126,7 +126,17 @@ test("network rejects HTTP, network, JSON and invalid contract responses", async
     );
   }
   for (const [response, error] of [
-    [new Response("", { status: 503 }), /HTTP 503/],
+    [
+      new Response('{"error": "nobel-eu.txt: row 7: bad"}', { status: 503 }),
+      {
+        message:
+          "The server could not read its network data files. Check the server logs for details.",
+      },
+    ],
+    [
+      new Response("", { status: 404 }),
+      { message: "The server could not handle this request." },
+    ],
     [new Response("<html>wrong route</html>"), /non-JSON/],
     [
       new Response("{", { headers: { "content-type": "application/json" } }),
@@ -139,8 +149,13 @@ test("network rejects HTTP, network, JSON and invalid contract responses", async
   mock.mock.mockImplementation(async () => {
     throw new Error("Network unavailable");
   });
-  await assert.rejects(
-    fetchNetwork(new AbortController().signal),
-    /Network unavailable/,
-  );
+  await assert.rejects(fetchNetwork(new AbortController().signal), {
+    message: "Could not reach the LinkScope server.",
+  });
+  const controller = new AbortController();
+  controller.abort();
+  mock.mock.mockImplementation(async () => {
+    throw new DOMException("Aborted", "AbortError");
+  });
+  await assert.rejects(fetchNetwork(controller.signal), { name: "AbortError" });
 });
