@@ -2,13 +2,15 @@
 # Shared Python/uv foundation for development and production builds.
 FROM node:24-bookworm-slim AS node-toolchain
 
+COPY frontend/run-checked.mjs /opt/linkscope/run-checked.mjs
+
 FROM node-toolchain AS application-build
 
 WORKDIR /frontend
 COPY frontend/package.json frontend/package-lock.json ./
-RUN npm ci
+RUN node /opt/linkscope/run-checked.mjs npm ci
 COPY frontend/ ./
-RUN npm run build
+RUN node /opt/linkscope/run-checked.mjs npm run build
 
 FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS base
 

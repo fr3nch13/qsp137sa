@@ -49,7 +49,7 @@ jobs:
       - name: Install locked dependencies
         run: uv sync --locked
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: '24'
           cache: npm
@@ -58,11 +58,11 @@ jobs:
       - name: Install and validate frontend
         working-directory: frontend
         run: |
-          npm ci
-          npm run lint
-          npm run typecheck
-          npm test
-          npm run build
+          node run-checked.mjs npm ci
+          node run-checked.mjs npm run lint
+          node run-checked.mjs npm run typecheck
+          node run-checked.mjs npm test
+          node run-checked.mjs npm run build
 
       - name: Lint, format, and test
         run: |
