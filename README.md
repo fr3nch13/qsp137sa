@@ -10,7 +10,12 @@ The project is based on the `nobel-eu` network from the [Survivable Network Desi
 
 ## Run the current demonstration
 
-Install Docker with the Docker Compose plugin and ensure Docker is running. Download or clone this repository and open a terminal in its root directory.
+Install Docker with the Docker Compose plugin and ensure Docker is running.
+
+Get [compose.yaml](./compose.yaml) from the root of this repository:
+
+- **Repository checkout:** Download or clone the repository, then open a terminal in its root directory, alongside `compose.yaml`.
+- **Published image only:** Open [compose.yaml on GitHub](https://github.com/fr3nch13/qsp137sa/blob/main/compose.yaml) and use **Download raw file** to save it as `compose.yaml` in an empty local folder. Open a terminal in that folder. No application source files are needed. If the repository is private, sign in with a GitHub account that has repository access to download the file.
 
 If the container package is private, sign Docker in to `ghcr.io` first. Your GitHub account must have access to the package. Use one of these options:
 
@@ -29,7 +34,7 @@ If the container package is private, sign Docker in to `ghcr.io` first. Your Git
 
 Docker should print `Login Succeeded`. Run `docker logout ghcr.io` to remove the saved credential later. Never put credentials in this repository.
 
-Start the published stable image in the background:
+From the folder containing `compose.yaml`, start the published stable image in the background:
 
 ```sh
 docker compose up -d
