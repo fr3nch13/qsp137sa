@@ -94,7 +94,7 @@
 #### M6: Network application delivery
 
 - **Priority:** This is the core assignment, not a follow-up feature. M1-M5 establish the delivery foundation; remaining implementation effort should focus on R1-R11 below, not optional infrastructure.
-- **Status:** M6a-M6d implemented and validated; M6e-M6f pending. Backend M6a-M6d belongs in one PR; frontend M6e-M6f belongs in a separate PR. Stop after each milestone for user review. Keep one application/container, the existing frontend shell, and no database.
+- **Status:** M6a-M6f implemented and locally validated; M6f published-image acceptance remains pending publication. Backend M6a-M6d belongs in one PR; frontend M6e-M6f belongs in a separate PR. Stop after each milestone for user review. Keep one application/container, the existing frontend shell, and no database.
 - **Prerequisites:** M1/M2 provide frontend/API integration. The dataset-source and loader sections below retain their detailed research/implementation checklists; M6a is their application acceptance gate, not a second implementation.
 
 ##### M6a: Load and validate the real network (R1-R4)
@@ -139,21 +139,29 @@
 
 ##### M6e: Show the network map and baseline findings (R9-R10)
 
+- **Acceptance (2026-10-27):** User accepted the initial M6e version and requested its commit. Follow-up refinements include tighter network framing, quarter-level zoom steps, findings left/map right at widths >=768px, critical elements before utilization, and right-aligned header totals with bold red critical counts. Below 768px the layout stacks. Final frontend suite: 12 passing tests; lint and type-check/build pass. M6f remains pending.
+
 - **Prerequisite:** M6d.
-- [ ] Replace the greeting-demo body with a coordinate-based network map; place sites near their attachments, including the hub-attached operations sites, with readable labels.
-- [ ] Display critical nodes/links and reasons, plus the five most utilized links with load/capacity/utilization values.
-- [ ] Use labels, shapes, line styles, or badges as well as color; retain the existing header/footer and palette, with accessible loading, empty, and error states.
+- [x] Replace the greeting-demo body with a coordinate-based network map; place sites near their attachments, including the hub-attached operations sites, with readable labels.
+- [x] Display critical nodes/links and reasons, plus the five most utilized links with load/capacity/utilization values.
+- [x] Use labels, shapes, line styles, or badges as well as color; retain the existing header/footer and palette, with accessible loading, empty, and error states.
 - **Acceptance:** The real 37-node/55-link network is visible in the browser, results match the API, and users can identify critical elements and top-five links without relying on color alone.
+- **Review (2026-10-27):** Leaflet 1.9.4 and TypeScript types 1.9.22 are locked; React draws the actual API coordinates over standard OpenStreetMap tiles (user-approved provider). The page displays 37 nodes/55 links, five numbered thick link overlays, different node symbols, critical asterisks/dashed lines, utilization table, and criticality reasons in expandable lists. Existing branding remains. Runtime API validation rejects malformed contracts; loading, empty-network, API-error, map-init-error and tile-error states are explicit. Eleven frontend tests, lint and type-check/build pass, including contract/presentation and packaged Leaflet image checks. Desktop (1440px) and narrow (390px) browser checks found no horizontal overflow and retained visible attribution. Blocking tiles preserved overlays/findings with a warning; HTTP 503 and malformed contracts showed errors instead of findings, then normal fetching recovered. The AMD64 production image builds, and existing development/production image smokes pass on alternate ports 22158/22159 without disturbing the devcontainer; temporary containers were removed. Nearby labels can require zoom. M6f controls are not implemented; no backend changes were needed.
 
 ##### M6f: Fail/restore interactively and verify the complete application (R11; end-to-end R1-R10)
 
 - **Prerequisite:** M6e.
-- [ ] Provide keyboard-accessible node/link selection and fail/restore controls for any element, with at most one simulated failure active.
-- [ ] Update the map and R8 report without a full-page reload; clearly distinguish failed-endpoint demands, other undeliverable demands, and overloaded links.
-- [ ] Handle request failures and rapid selection changes explicitly so stale responses cannot overwrite the current selection; restoring returns the baseline.
-- [ ] Add focused frontend tests and real-browser checks covering node failure, link failure, restore, accessible indicators, and visible API errors.
+- [x] Provide keyboard-accessible node/link selection and fail/restore controls for any element, with at most one simulated failure active.
+- [x] Update the map and R8 report without a full-page reload; clearly distinguish failed-endpoint demands, other undeliverable demands, and overloaded links.
+- [x] Handle request failures and rapid selection changes explicitly so stale responses cannot overwrite the current selection; restoring returns the baseline.
+- [x] Add focused frontend tests and real-browser checks covering node failure, link failure, restore, accessible indicators, and visible API errors.
 - [ ] Repeat the application proof using the published image through the documented Compose startup command; update the README's actual capabilities and remaining limitations.
 - **Acceptance:** A user can start the app with one command, see the baseline findings, fail/restore any node or link, and receive correct updated results without reloading. Record the team's three answers with measured numbers for M7.
+- **Review (2026-10-27):** Native labeled selectors cover all 37 nodes/55 links. Fail selected replaces the single active failure; Restore baseline aborts pending requests and restores the validated initial result immediately. Analysis shape/scenario/link/demand validation is shared with the existing API fetch path. R8 reports expose separate demand counts/units and expandable complete demand lists, every overload, connectivity, and scenario-aware utilization. The map updates overlays without rebuilding its basemap or resetting pan/zoom, with explicit failed/overloaded labels. Baseline criticality remains labeled as baseline.
+- **Verification:** 16 frontend tests, lint, type-check/build, AMD64 production build and complete development/production image smokes pass. Browser checks verified L12 -> L26 at 128.30%, Hamburg -> 27 failed-endpoint demands/162 units and L26 at 117.06%, HUB-EAST–Warsaw -> 20 undeliverable units despite physical connectivity, OPS-WEST–Dublin -> disconnection plus 20 units, and restore -> L12 at 71.01%. Forced HTTP 503 recovered without sample-result fallbacks. An artificially delayed L12 response (ignoring abort) could overwrite neither a newer L26 result nor a restore; restore preserved page time origin and map positions. A 390px viewport retained controls/markers without page overflow.
+- **Delivery proof:** Local production image also started through `compose.yaml` with a temporary local-image/no-pull/alternate-port override. Its Gunicorn-served UI reproduced L12 and Hamburg failures and baseline restore without reloading (37 markers/55 links). This is not a published-image claim: repeat the documented unmodified Compose command after frontend publication. No backend changes, dependency additions, commit, push or release were required for this step.
+- **Settled visual design:** 25%/75% sidebar/map grid at >=768px; collapsed baseline criticality lists above the simulation form, aligned selectors and grouped buttons, with the scope note inside the form footer. Status/impact and utilization share two columns directly beneath the map; mobile stacks. Header totals are neutral, right-aligned above the map. Map instructions are screen-reader-only. User requested suppression of viewport pinch gestures while retaining ordinary scrolling and keyboard/browser-menu zoom. Final checks are recorded in project context; published-image acceptance remains unchecked.
+- **Pre-review rerun (2026-10-27):** Final documentation synchronized; 16 frontend tests, lint, type-check/build, rebuilt AMD64 production image and full development/production image smokes passed. Final browser checks at 1440/768/390px found no horizontal overflow and confirmed collapsed lists, footer placement, L12 overload and restore. Ready for the user's review agent; changes remain uncommitted/unpushed.
 
 #### M7: Delivery documentation and evidence
 

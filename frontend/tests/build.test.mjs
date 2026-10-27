@@ -173,6 +173,22 @@ test("clean source build emits HTML and bundled JavaScript/CSS", async () => {
         (await readFile(path.join(temporary, "dist", asset))).length > 0,
       );
     }
+    const css = await readFile(
+      path.join(temporary, "dist/assets/app.css"),
+      "utf8",
+    );
+    const images = [...css.matchAll(/url\(["']?([^"')]+\.png)["']?\)/g)];
+    assert.equal(
+      images.length,
+      3,
+      "Leaflet CSS must reference its bundled images",
+    );
+    for (const match of images) {
+      assert.ok(
+        (await readFile(path.join(temporary, "dist/assets", match[1]))).length >
+          0,
+      );
+    }
   } finally {
     await rm(temporary, { recursive: true, force: true });
   }

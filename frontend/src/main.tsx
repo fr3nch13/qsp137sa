@@ -2,7 +2,17 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
+import "leaflet/dist/leaflet.css";
 import "./styles.css";
+
+// Trackpad pinches arrive as Ctrl+wheel; leave normal scrolling and keyboard zoom intact.
+document.addEventListener(
+  "wheel",
+  (event) => {
+    if (event.ctrlKey) event.preventDefault();
+  },
+  { passive: false },
+);
 
 const root = document.getElementById("root");
 if (!root) {
