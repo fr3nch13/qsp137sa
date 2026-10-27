@@ -15,24 +15,9 @@ Install Docker with the Docker Compose plugin and ensure Docker is running.
 Get [compose.yaml](./compose.yaml) from the root of this repository:
 
 - **Repository checkout:** Download or clone the repository, then open a terminal in its root directory, alongside `compose.yaml`.
-- **Published image only:** Open [compose.yaml on GitHub](https://github.com/fr3nch13/qsp137sa/blob/main/compose.yaml) and use **Download raw file** to save it as `compose.yaml` in an empty local folder. Open a terminal in that folder. No application source files are needed. If the repository is private, sign in with a GitHub account that has repository access to download the file.
+- **Published image only:** Open [compose.yaml on GitHub](https://github.com/fr3nch13/qsp137sa/blob/main/compose.yaml) and use **Download raw file** to save it as `compose.yaml` in an empty local folder. Open a terminal in that folder. No application source files are needed.
 
-If the container package is private, sign Docker in to `ghcr.io` first. Your GitHub account must have access to the package. Use one of these options:
-
-- **GitHub CLI:** add the package-read scope to your login, then pass its token to Docker:
-
-  ```sh
-  gh auth refresh -h github.com -s read:packages
-  gh auth token | docker login ghcr.io -u "$(gh api user --jq .login)" --password-stdin
-  ```
-
-- **Personal access token:** create a [classic token](https://github.com/settings/tokens/new?scopes=read:packages) with the `read:packages` scope. Then run the following, replacing `YOUR_GITHUB_USERNAME`. The token is read without being shown on screen or saved in your shell history:
-
-  ```sh
-  read -rs GHCR_TOKEN && printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin; unset GHCR_TOKEN
-  ```
-
-Docker should print `Login Succeeded`. Run `docker logout ghcr.io` to remove the saved credential later. Never put credentials in this repository.
+The repository and published container images are public. No GitHub account, access token, or Docker registry login is required to download them.
 
 From the folder containing `compose.yaml`, start the published stable image in the background:
 

@@ -402,6 +402,8 @@ The deliverable is a first, small working network-analysis application. Keep imp
 
 ## Repository Scope and README
 
+The GitHub repository and GHCR image package are public as of 2026-10-27. End users do not need a GitHub account, access token, or registry login to download the Compose file or published images. Anonymous Compose-file download and `main`/`dev` image-manifest access were verified with HTTP 200; this was not a new complete image pull or runtime verification. Public source/image distribution does not change the application's local-only, unauthenticated deployment boundary. After the visibility change, `main` retained required PRs, the `test` check, administrator enforcement, and blocked force-pushes; fork PR jobs remain skipped by the CI workflow's same-repository guard.
+
 Outside `./docs/` and `./.github/`, all project files—including the root `README.md`—are part of the production-level application scope. Treat application code and user-facing materials as production-quality deliverables, not scratch work or assignment-only artifacts.
 
 The README is for end users. Keep it focused on the product overview, implemented capabilities, and supported user-facing options. Describe options at a high level; do not put internal architecture, source file paths, environment variable names, development commands, or CI/CD implementation details there. Be accurate about what is and is not available, and document how to use the application once it is runnable. Keep development setup, architecture, exact configuration, validation commands, and release mechanics in `.github/project-context.md` and `.github/tasks/*.md`.
