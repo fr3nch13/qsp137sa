@@ -169,7 +169,7 @@ Approved on 2026-10-27; the frontend source/build foundation (M1) and npm Docker
 
 The `frontend/` directory contains the React/TypeScript shell, authored HTML/CSS, and locked npm dependencies. Use Node.js 24 LTS and npm. esbuild bundles assets, TypeScript checks types, Biome checks lint/format, and Node's test runner with `tsx` runs component and build tests. No Vite or frontend web server is used.
 
-The npm `allowScripts` policy approves only the locked `esbuild@0.28.2` install script, which sets up and validates its platform-specific executable. Review that approval when upgrading esbuild; do not approve all dependency scripts. Use the npm bundled with Node 24 in Docker, CI, and local development; do not install a separate npm version or suppress update notices. Update notifications, installation diagnostics, and audits remain enabled. The checked-command wrapper rejects Node/npm warnings and notices, so an npm update notice can fail validation even when the bundled npm works.
+The npm `allowScripts` policy approves only the locked `esbuild@0.28.2` install script, which sets up and validates its platform-specific executable. Review that approval when upgrading esbuild; do not approve all dependency scripts. Use Node 24's bundled npm without a separate npm upgrade or version pin. The frontend `.npmrc` disables only npm's newer-version notification (`update-notifier=false`), an explicitly accepted exception to diagnostic enforcement. Docker copies this configuration before `npm ci`; CI runs from the frontend directory. Other Node/npm warnings and notices still fail checked validation, and audit output remains enabled.
 
 From the repository root:
 
