@@ -7,7 +7,7 @@ COPY frontend/run-checked.mjs /opt/linkscope/run-checked.mjs
 FROM node-toolchain AS application-build
 
 WORKDIR /frontend
-COPY frontend/package.json frontend/package-lock.json ./
+COPY frontend/package.json frontend/package-lock.json frontend/.npmrc ./
 RUN node /opt/linkscope/run-checked.mjs npm ci
 COPY frontend/ ./
 RUN node /opt/linkscope/run-checked.mjs npm run build
