@@ -1,0 +1,15 @@
+{
+  // Lint and format authored frontend files, not generated bundles or dependencies.
+  "files": {
+    "includes": ["**", "!dist", "!node_modules", "!package-lock.json"]
+  },
+  "formatter": {
+    "indentStyle": "space",
+    "indentWidth": 2
+  },
+  "linter": {
+    "rules": {
+      "preset": "recommended"
+    }
+  }
+}
