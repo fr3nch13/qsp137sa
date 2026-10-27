@@ -10,7 +10,12 @@ The project is based on the `nobel-eu` network from the [Survivable Network Desi
 
 ## Run the current demonstration
 
-Install Docker with the Docker Compose plugin and ensure Docker is running. Download or clone this repository and open a terminal in its root directory.
+Install Docker with the Docker Compose plugin and ensure Docker is running.
+
+Get [compose.yaml](./compose.yaml) from the root of this repository:
+
+- **Repository checkout:** Download or clone the repository, then open a terminal in its root directory, alongside `compose.yaml`.
+- **Published image only:** Open [compose.yaml on GitHub](https://github.com/fr3nch13/qsp137sa/blob/main/compose.yaml) and use **Download raw file** to save it as `compose.yaml` in an empty local folder. Open a terminal in that folder. No application source files are needed. If the repository is private, sign in with a GitHub account that has repository access to download the file.
 
 If the container package is private, sign Docker in to `ghcr.io` first. Your GitHub account must have access to the package. Use one of these options:
 
@@ -29,7 +34,7 @@ If the container package is private, sign Docker in to `ghcr.io` first. Your Git
 
 Docker should print `Login Succeeded`. Run `docker logout ghcr.io` to remove the saved credential later. Never put credentials in this repository.
 
-Start the published stable image in the background:
+From the folder containing `compose.yaml`, start the published stable image in the background:
 
 ```sh
 docker compose up -d
@@ -53,13 +58,21 @@ The Leaflet map uses standard OpenStreetMap tiles. The background requires inter
 
 If network analysis cannot load, the page shows an error rather than sample results. Backend analysis is available at `/api/network` (topology, baseline and criticality) and `/api/analysis` (baseline), or for example `/api/analysis?kind=link&id=L12` for a single failure report. Omit the query parameters to return to the baseline.
 
-View logs:
+### Logs and input errors
+
+Invalid backbone or site input is rejected with a diagnostic formatted as `<file path>: row <physical row>: <reason>`. The server logs the diagnostic and traceback, and the API returns the diagnostic in a JSON HTTP 503 response. The browser currently shows only a generic HTTP-status error; use the server logs to find the filename, row, and validation reason.
+
+The published container sends errors to stderr and request logs to stdout. View them with:
 
 ```sh
 docker compose logs -f
 ```
 
-Press **Ctrl+C** to stop following logs; the app keeps running. Stop and remove the container with:
+Press **Ctrl+C** to stop following logs; the app keeps running. There is no dedicated persistent production application log file or application-managed log rotation; retention depends on Docker's logging configuration. Save any needed diagnostics before removing the container.
+
+In the VS Code devcontainer, server output is also appended to `$HOME/.cache/linkscope/runserver.log` (normally `/home/app/.cache/linkscope/runserver.log`).
+
+Stop and remove the container with:
 
 ```sh
 docker compose down
