@@ -1,4 +1,4 @@
-// Fetch the baseline network and validate the frontend's complete API contract.
+// Fetch network and single-failure results with runtime API contract validation.
 export type NodeKind =
   | "backbone"
   | "operations-site"
@@ -34,19 +34,21 @@ export type Criticality = {
   critical: boolean;
   reasons: Reason[];
 };
+export type Failure = { kind: "node" | "link"; id: string };
+export type Analysis = {
+  failure: Failure | null;
+  links: LinkLoad[];
+  top_five: LinkLoad[];
+  undeliverable: Demand[];
+  failed_endpoint_demands: Demand[];
+  overloaded: LinkLoad[];
+  disconnected: boolean;
+};
 export type Network = {
   nodes: NetworkNode[];
   links: NetworkLink[];
   demands: Demand[];
-  baseline: {
-    failure: null;
-    links: LinkLoad[];
-    top_five: LinkLoad[];
-    undeliverable: Demand[];
-    failed_endpoint_demands: Demand[];
-    overloaded: LinkLoad[];
-    disconnected: boolean;
-  };
+  baseline: Analysis & { failure: null };
   criticality: Criticality[];
 };
 
@@ -126,6 +128,22 @@ function array<T>(
 ): value is T[] {
   return Array.isArray(value) && value.every(guard);
 }
+function analysis(value: unknown): value is Analysis {
+  return (
+    record(value) &&
+    (value.failure === null ||
+      (record(value.failure) &&
+        (value.failure.kind === "node" || value.failure.kind === "link") &&
+        text(value.failure.id))) &&
+    array(value.links, load) &&
+    array(value.top_five, load) &&
+    value.top_five.length <= 5 &&
+    array(value.undeliverable, demand) &&
+    array(value.failed_endpoint_demands, demand) &&
+    array(value.overloaded, load) &&
+    typeof value.disconnected === "boolean"
+  );
+}
 function network(value: unknown): value is Network {
   if (
     !record(value) ||
@@ -133,21 +151,11 @@ function network(value: unknown): value is Network {
     !array(value.links, link) ||
     !array(value.demands, demand) ||
     !array(value.criticality, criticality) ||
-    !record(value.baseline)
+    !analysis(value.baseline)
   )
     return false;
   const baseline = value.baseline;
-  if (
-    baseline.failure !== null ||
-    !array(baseline.links, load) ||
-    !array(baseline.top_five, load) ||
-    baseline.top_five.length > 5 ||
-    !array(baseline.undeliverable, demand) ||
-    !array(baseline.failed_endpoint_demands, demand) ||
-    !array(baseline.overloaded, load) ||
-    typeof baseline.disconnected !== "boolean"
-  )
-    return false;
+  if (baseline.failure !== null) return false;
   const nodes = new Set(value.nodes.map((item) => item.id));
   const links = new Set(value.links.map((item) => item.id));
   return (
@@ -171,14 +179,99 @@ function network(value: unknown): value is Network {
   );
 }
 
-export async function fetchNetwork(signal: AbortSignal): Promise<Network> {
-  const response = await fetch("/api/network", { signal });
+async function fetchJSON(url: string, signal: AbortSignal): Promise<unknown> {
+  const response = await fetch(url, { signal });
   if (!response.ok)
     throw new Error(`API request failed (HTTP ${response.status}).`);
   if (!response.headers.get("content-type")?.includes("application/json")) {
     throw new Error("API returned a non-JSON response.");
   }
-  const data: unknown = await response.json();
+  return response.json();
+}
+
+export async function fetchNetwork(signal: AbortSignal): Promise<Network> {
+  const data = await fetchJSON("/api/network", signal);
   if (!network(data)) throw new Error("API returned an invalid network.");
+  return data;
+}
+
+export async function fetchAnalysis(
+  network: Network,
+  failure: Failure,
+  signal: AbortSignal,
+): Promise<Analysis> {
+  const query = new URLSearchParams(failure);
+  const data = await fetchJSON(`/api/analysis?${query}`, signal);
+  if (
+    !analysis(data) ||
+    data.failure?.kind !== failure.kind ||
+    data.failure.id !== failure.id
+  )
+    throw new Error("API returned an invalid analysis.");
+  const surviving = network.links.filter((item) =>
+    failure.kind === "link"
+      ? item.id !== failure.id
+      : item.source !== failure.id && item.target !== failure.id,
+  );
+  const loads = new Map(data.links.map((item) => [item.id, item]));
+  const demands = new Map(network.demands.map((item) => [item.id, item]));
+  const sameLoad = (item: LinkLoad) => {
+    const expected = loads.get(item.id);
+    return (
+      expected !== undefined &&
+      expected.source === item.source &&
+      expected.target === item.target &&
+      expected.capacity === item.capacity &&
+      expected.load === item.load &&
+      expected.utilization_percent === item.utilization_percent
+    );
+  };
+  const reported = [...data.failed_endpoint_demands, ...data.undeliverable];
+  if (
+    data.links.length !== surviving.length ||
+    loads.size !== surviving.length ||
+    !surviving.every((item) => {
+      const result = loads.get(item.id);
+      return (
+        result?.source === item.source &&
+        result.target === item.target &&
+        result.capacity === item.capacity
+      );
+    }) ||
+    ![...data.top_five, ...data.overloaded].every(sameLoad) ||
+    new Set(data.top_five.map((item) => item.id)).size !==
+      data.top_five.length ||
+    new Set(data.overloaded.map((item) => item.id)).size !==
+      data.overloaded.length ||
+    data.overloaded.length !==
+      data.links.filter((item) => item.load > item.capacity).length ||
+    !data.overloaded.every((item) => item.load > item.capacity) ||
+    new Set(reported.map((item) => item.id)).size !== reported.length ||
+    !reported.every((item) => {
+      const expected = demands.get(item.id);
+      return (
+        expected?.source === item.source &&
+        expected.target === item.target &&
+        expected.units === item.units
+      );
+    }) ||
+    !data.failed_endpoint_demands.every(
+      (item) =>
+        failure.kind === "node" &&
+        (item.source === failure.id || item.target === failure.id),
+    ) ||
+    data.failed_endpoint_demands.length !==
+      network.demands.filter(
+        (item) =>
+          failure.kind === "node" &&
+          (item.source === failure.id || item.target === failure.id),
+      ).length ||
+    data.undeliverable.some(
+      (item) =>
+        failure.kind === "node" &&
+        (item.source === failure.id || item.target === failure.id),
+    )
+  )
+    throw new Error("API analysis does not match the network.");
   return data;
 }
