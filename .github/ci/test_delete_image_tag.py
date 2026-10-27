@@ -41,11 +41,20 @@ class CleanupApiTests(unittest.TestCase):
     @patch("delete_image_tag.subprocess.check_output")
     def test_all_pages_are_checked(self, api, delete, event):
         event.return_value = json.dumps({"ref": "feature/ui", "ref_type": "branch"})
-        api.side_effect = [
-            json.dumps([[], [{"name": "qsp137sa"}]]),
-            json.dumps([[version(1, ["main"])], [version(2, ["feature-ui"])]]),
-        ]
+        api.return_value = json.dumps(
+            [[version(1, ["main"])], [version(2, ["feature-ui"])]]
+        )
         main()
+        api.assert_called_once_with(
+            [
+                "gh",
+                "api",
+                "--paginate",
+                "--slurp",
+                "users/fr3nch13/packages/container/qsp137sa/versions?per_page=100",
+            ],
+            text=True,
+        )
         delete.assert_called_once_with(
             [
                 "gh",
@@ -60,7 +69,7 @@ class CleanupApiTests(unittest.TestCase):
     @patch("delete_image_tag.Path.read_text")
     @patch("delete_image_tag.subprocess.run")
     @patch("delete_image_tag.subprocess.check_output", return_value="[]")
-    def test_missing_package_is_noop(self, api, delete, event):
+    def test_empty_versions_is_noop(self, api, delete, event):
         event.return_value = json.dumps({"ref": "v1.0", "ref_type": "tag"})
         main()
         api.assert_called_once()
@@ -69,11 +78,20 @@ class CleanupApiTests(unittest.TestCase):
     @patch("delete_image_tag.Path.read_text")
     @patch("delete_image_tag.subprocess.run")
     @patch("delete_image_tag.subprocess.check_output")
-    def test_api_errors_propagate(self, api, delete, event):
+    @patch("delete_image_tag.sys.stderr")
+    def test_api_errors_propagate(self, stderr, api, delete, event):
         event.return_value = json.dumps({"ref": "v1.0", "ref_type": "tag"})
-        api.side_effect = subprocess.CalledProcessError(1, "gh")
-        with self.assertRaises(subprocess.CalledProcessError):
-            main()
+        for message in ("Invalid argument.", "Not Found", "Forbidden"):
+            with self.subTest(message=message):
+                stderr.reset_mock()
+                error = subprocess.CalledProcessError(
+                    1, "gh", output=json.dumps({"message": message})
+                )
+                api.side_effect = error
+                with self.assertRaises(subprocess.CalledProcessError) as raised:
+                    main()
+                self.assertIs(raised.exception, error)
+                self.assertIn(message, stderr.write.call_args_list[0].args[0])
         delete.assert_not_called()
 
     @patch("delete_image_tag.Path.read_text")
@@ -81,10 +99,9 @@ class CleanupApiTests(unittest.TestCase):
     @patch("delete_image_tag.subprocess.check_output")
     def test_no_delete_when_any_version_is_shared(self, api, delete, event):
         event.return_value = json.dumps({"ref": "feature", "ref_type": "branch"})
-        api.side_effect = [
-            json.dumps([[{"name": "qsp137sa"}]]),
-            json.dumps([[version(1, ["feature"]), version(2, ["feature", "v1"])]]),
-        ]
+        api.return_value = json.dumps(
+            [[version(1, ["feature"]), version(2, ["feature", "v1"])]]
+        )
         with self.assertRaises(ValueError):
             main()
         delete.assert_not_called()

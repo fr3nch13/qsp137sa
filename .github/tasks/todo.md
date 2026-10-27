@@ -2,6 +2,15 @@
 
 ## Open
 
+### Deleted-ref package lookup failure
+
+- [x] Remove account-wide package enumeration; query the known package's versions using the existing workflow token.
+- [x] Preserve pagination, protected tags, and shared-version guards; report API response bodies and fail on missing/inaccessible packages.
+- [x] Validate CI-helper tests and focused Python lint/format checks.
+- [ ] Verify the direct versions request and a disposable-version deletion inside Actions; local CLI credentials do not prove workflow-token access.
+- **Local review:** All 31 CI-helper tests, focused Ruff lint/format checks, and whitespace checks passed. No live package versions were deleted and no workflow was rerun.
+- **Authentication correction:** Package-side Actions admin access is already configured, per the user. Do not infer a PAT requirement from a generic HTTP 400; GitHub supports workflow-token deletion for granular-permission registries.
+
 ### GHCR untagged image cleanup
 
 - **Scope:** Separate from the stashed M2 work; preserve all tagged images and delete untagged versions last updated at least 24 hours ago.
