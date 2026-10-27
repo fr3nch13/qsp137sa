@@ -2,6 +2,16 @@
 
 ## Open
 
+### GHCR untagged image cleanup
+
+- **Scope:** Separate from the stashed M2 work; preserve all tagged images and delete untagged versions last updated at least 24 hours ago.
+- [x] Add paginated cleanup with a tag recheck before each deletion and explicit API failure handling.
+- [x] Run cleanup after successful CI publication, serialized across refs.
+- [x] Validate helper tests, Python lint/format, and workflow syntax.
+- [ ] Verify the eligible existing untagged backlog is removed by the first successful CI cleanup after these changes are published.
+- **Review:** All 27 CI-helper tests, focused Ruff lint/format checks, actionlint, and whitespace checks passed. The initial live attempt failed before deletion because package read permission was missing. The user subsequently authorized the CLI and chose to leave the backlog for CI rather than delete it locally. CI deletion uses its own `GITHUB_TOKEN`, which needs package admin access independently of CLI authorization.
+- **24-hour buffer follow-up:** All 31 CI-helper tests and focused Ruff checks passed after adding last-update retention, including the exact cutoff boundary and a recent update discovered during the pre-deletion recheck.
+
 ### Bundled frontend and API milestones
 
 - **Status:** M1 implemented and locally validated on 2026-10-27; M2-M7 pending.
