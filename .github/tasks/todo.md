@@ -94,7 +94,7 @@
 #### M6: Network application delivery
 
 - **Priority:** This is the core assignment, not a follow-up feature. M1-M5 establish the delivery foundation; remaining implementation effort should focus on R1-R11 below, not optional infrastructure.
-- **Status:** M6a-M6d implemented and validated; M6e-M6f pending. Backend M6a-M6d belongs in one PR; frontend M6e-M6f belongs in a separate PR. Stop after each milestone for user review. Keep one application/container, the existing frontend shell, and no database.
+- **Status:** M6a-M6e implemented and validated; M6f pending. Backend M6a-M6d belongs in one PR; frontend M6e-M6f belongs in a separate PR. Stop after each milestone for user review. Keep one application/container, the existing frontend shell, and no database.
 - **Prerequisites:** M1/M2 provide frontend/API integration. The dataset-source and loader sections below retain their detailed research/implementation checklists; M6a is their application acceptance gate, not a second implementation.
 
 ##### M6a: Load and validate the real network (R1-R4)
@@ -139,11 +139,14 @@
 
 ##### M6e: Show the network map and baseline findings (R9-R10)
 
+- **Acceptance (2026-10-27):** User accepted the initial M6e version and requested its commit. Follow-up refinements include tighter network framing, quarter-level zoom steps, findings left/map right at widths >=768px, critical elements before utilization, and right-aligned header totals with bold red critical counts. Below 768px the layout stacks. Final frontend suite: 12 passing tests; lint and type-check/build pass. M6f remains pending.
+
 - **Prerequisite:** M6d.
-- [ ] Replace the greeting-demo body with a coordinate-based network map; place sites near their attachments, including the hub-attached operations sites, with readable labels.
-- [ ] Display critical nodes/links and reasons, plus the five most utilized links with load/capacity/utilization values.
-- [ ] Use labels, shapes, line styles, or badges as well as color; retain the existing header/footer and palette, with accessible loading, empty, and error states.
+- [x] Replace the greeting-demo body with a coordinate-based network map; place sites near their attachments, including the hub-attached operations sites, with readable labels.
+- [x] Display critical nodes/links and reasons, plus the five most utilized links with load/capacity/utilization values.
+- [x] Use labels, shapes, line styles, or badges as well as color; retain the existing header/footer and palette, with accessible loading, empty, and error states.
 - **Acceptance:** The real 37-node/55-link network is visible in the browser, results match the API, and users can identify critical elements and top-five links without relying on color alone.
+- **Review (2026-10-27):** Leaflet 1.9.4 and TypeScript types 1.9.22 are locked; React draws the actual API coordinates over standard OpenStreetMap tiles (user-approved provider). The page displays 37 nodes/55 links, five numbered thick link overlays, different node symbols, critical asterisks/dashed lines, utilization table, and criticality reasons in expandable lists. Existing branding remains. Runtime API validation rejects malformed contracts; loading, empty-network, API-error, map-init-error and tile-error states are explicit. Eleven frontend tests, lint and type-check/build pass, including contract/presentation and packaged Leaflet image checks. Desktop (1440px) and narrow (390px) browser checks found no horizontal overflow and retained visible attribution. Blocking tiles preserved overlays/findings with a warning; HTTP 503 and malformed contracts showed errors instead of findings, then normal fetching recovered. The AMD64 production image builds, and existing development/production image smokes pass on alternate ports 22158/22159 without disturbing the devcontainer; temporary containers were removed. Nearby labels can require zoom. M6f controls are not implemented; no backend changes were needed.
 
 ##### M6f: Fail/restore interactively and verify the complete application (R11; end-to-end R1-R10)
 
