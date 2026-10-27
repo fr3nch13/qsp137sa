@@ -72,22 +72,24 @@
 #### M4: Single production image
 
 - **Prerequisites:** M1 and M2.
-- **Status:** Production packaging and container HTTP checks passed in CI; the production-image browser check remains pending.
+- **Status:** Complete; CI packaging checks passed and the user confirmed the remaining production-image checks from their laptop.
 - [x] Add the Node application-build stage using locked `npm ci` and the frontend build; copy only required build output into the Python production runtime.
 - [x] Preserve development/production target separation, non-root permissions, runtime secrets, loopback-only Compose publishing, and explicit AMD64 selection.
 - [x] Verify a clean build without local bundles, frontend/API HTTP responses through Gunicorn, and absence of Node/npm in the production runtime.
-- [ ] Verify the React homepage displays the message fetched from `/api` through the production Gunicorn entry point.
+- [x] Verify the React homepage displays the message fetched from `/api` through the production Gunicorn entry point.
 - **Review (2026-10-27):** [Run 40455416000](https://github.com/fr3nch13/qsp137sa/actions/runs/40455416000) passed development/production image builds and image/HTTP tests. The smoke script checks UID 10001, a non-writable application directory, absent `.env`/`.git`, no Node/npm, generated assets, and the greeting API. `.dockerignore` excludes local bundles/dependencies; production builds its frontend from source. Compose preserves loopback-only binding and explicit AMD64 selection. A separate local Gunicorn process served HTML/JS/CSS/logo and displayed the API greeting in a real browser on port 2160, then was stopped. This verifies the entry point, not the production container in a browser; that final checkbox remains open. No Dockerfile change was necessary.
 
 #### M5: CI and bundled-image verification
 
 - **Prerequisites:** M3 and M4.
+- **Status:** Acceptance checklist complete; the user confirmed the remaining published-image Compose/browser checks on their laptop on 2026-10-27 using `docker compose up -d`. This supersedes the earlier local-environment verification limitations below. The selected image tag/digest was not recorded.
 - [x] Extend the existing single CI flow with frontend lint, type-check, tests, and reproducible build checks; preserve triggers, required checks, artifact publication, and no path filtering.
 - [x] Extend image smoke tests to verify frontend HTML/assets, API success/error behavior, and development rebuild support while retaining existing checks.
-- [ ] Validate Compose startup and browser requests on a Docker host, record actual evidence, and distinguish environment-blocked checks from passed checks.
-- [ ] Repeat the homepage-to-`/api` message proof using the published image through Compose before proceeding with full network-application integration.
+- [x] Validate Compose startup and browser requests on a Docker host, record actual evidence, and distinguish environment-blocked checks from passed checks.
+- [x] Repeat the homepage-to-`/api` message proof using the published image through Compose before proceeding with full network-application integration.
 - **Review (2026-10-27):** Development smoke tests run Node/npm and locked frontend validation (including source-only build/watch tests) in a writable copy; both images are checked for HTML/assets/API success and missing-route errors. [Run 40455416000](https://github.com/fr3nch13/qsp137sa/actions/runs/40455416000) passed the complete test job, including image builds, smoke tests, and production-image export/upload. Publication then failed: `download-artifact@v8.0.2` still emits `DEP0005` from its bundled ZIP extractor, and the required Node-warning guard correctly fails it. The version pin did not fix the upstream warning. No suppression or custom extraction workaround was added. All 32 CI-helper tests passed again locally. Actual post-create execution, fresh container recreation, and published-image Compose/browser verification remain unverified here because Docker is unavailable. M5 is not complete.
 - **Policy follow-up:** Removed the fatal third-party Node-warning guard at the user's request; warnings remain in logs and no custom extraction is needed. Publication after this change still requires hosted validation.
+- **User verification follow-up (M4/M5):** The user checked off the remaining items after verifying the published application through Compose from their laptop terminal. This closes the production-image/browser acceptance gates; it does not establish that a new CI run has published the warning-policy change.
 
 #### M6: Network application delivery
 

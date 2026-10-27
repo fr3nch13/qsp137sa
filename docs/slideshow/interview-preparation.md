@@ -50,6 +50,8 @@ M4/M5 evidence review on 2026-10-27: Actions run 40455416000 passed both image b
 
 Subsequent user decision: remove the fatal third-party Node-warning guard to keep warnings visible without blocking jobs. Both workflows now use default Node warning logging; actual action failures and frontend checked-command validation remain enforced. The guard-specific test was removed. Hosted publication after this change remains unverified.
 
+User verification follow-up (2026-10-27): the user confirmed the remaining M4/M5 checks by running `docker compose up -d` from their laptop terminal and marked the published-image/browser acceptance items complete. This supersedes the earlier pending Compose/browser limitations. The selected image tag/digest was not recorded, and this does not verify a new hosted publication after the warning-policy change.
+
 | Concern | Implemented now | Why incomplete/deferred | First internal-release work |
 |---|---|---|---|
 | Authentication and access control | No authentication; local host restrictions and loopback-only demonstration. | Account-management scope deferred for the local demonstration. | Add authentication, protected endpoints, least-privilege authorization, and access-control tests before shared use. |

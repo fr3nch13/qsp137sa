@@ -234,6 +234,8 @@ M2 verification on 2026-10-27: 11 Django tests, eight frontend tests, 31 CI-help
 
 ### Django startup
 
+Verification update (2026-10-27): the user confirmed the remaining M4/M5 checks on their laptop using `docker compose up -d` and marked the published-image/browser acceptance items complete. This supersedes the pending Compose/browser status recorded above. The selected image tag/digest was not recorded. A new hosted publication after removal of the fatal warning guard remains a separate, unverified check.
+
 Run `uv sync --locked` to install dependencies. The devcontainer loads `.env.default` first and `.env` second through Docker's ordered `--env-file` arguments; values in `.env` override defaults. The template contains a public development-only placeholder key; `.env` is private and ignored by Git, and both files are excluded from image builds.
 
 Before Docker starts, the devcontainer's host-side `initializeCommand` uses a POSIX shell to create an empty `.env` with owner-only permissions if absent. Existing contents and permissions are preserved. Fresh checkouts therefore use the public development-only defaults without manual setup. To override them, put a randomly generated `DJANGO_SECRET_KEY` in the private `.env`. Rebuild the devcontainer after changing either file; this configuration does not update an already running container's environment. No dotenv package or Django settings changes are needed.
