@@ -16,6 +16,7 @@
 - [x] Add `npm run build` and a build-watch command, plus lint, type-check, and focused frontend tests. Document exact directories and commands.
 - [x] Ignore dependencies, compiled bundles, and collected static output in Git; ensure clean builds do not rely on existing generated files.
 - **Review:** `npm ci`, Biome lint/format checks, TypeScript checks, all three tests, and production frontend build passed. Tests verify shell semantics, source-only build output, and watch rebuilds for TSX, CSS, and HTML. Docker/CI npm wiring was added following review rather than leaving validation local-only. Serving the frontend remains M2.
+- **CI log follow-up:** Job `121974036972` passed. Added version-specific approval for esbuild's required install script and upgraded setup-node to v7. Use Node 24's bundled npm without a separate npm pin/upgrade or notification suppression. Checked commands reject Node/npm warnings and notices; a bundled-npm update notice can therefore fail validation.
 
 #### M2: Same-origin Django serving and frontend/API proof
 

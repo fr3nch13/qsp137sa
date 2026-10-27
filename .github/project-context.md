@@ -169,6 +169,8 @@ Approved on 2026-10-27; the frontend source/build foundation (M1) and npm Docker
 
 The `frontend/` directory contains the React/TypeScript shell, authored HTML/CSS, and locked npm dependencies. Use Node.js 24 LTS and npm. esbuild bundles assets, TypeScript checks types, Biome checks lint/format, and Node's test runner with `tsx` runs component and build tests. No Vite or frontend web server is used.
 
+The npm `allowScripts` policy approves only the locked `esbuild@0.28.2` install script, which sets up and validates its platform-specific executable. Review that approval when upgrading esbuild; do not approve all dependency scripts. Use the npm bundled with Node 24 in Docker, CI, and local development; do not install a separate npm version or suppress update notices. Update notifications, installation diagnostics, and audits remain enabled. The checked-command wrapper rejects Node/npm warnings and notices, so an npm update notice can fail validation even when the bundled npm works.
+
 From the repository root:
 
 ```sh
@@ -185,7 +187,7 @@ Validate from `frontend/` with `npm run lint`, `npm run typecheck`, `npm test`, 
 
 The Dockerfile now uses `node:24-bookworm-slim` as its Node toolchain source. Development copies Node/npm from that stage; `post_create.sh` runs `npm --prefix frontend ci` and `npm --prefix frontend run build` after Python setup. The separate `application-build` stage runs locked `npm ci` and builds from source; production copies its `dist` output without Node/npm. Rebuild the devcontainer to obtain image-provided tools. The working container also has a separately provisioned Node 24 installation for local validation.
 
-CI uses `actions/setup-node@v6` with Node 24 and lockfile-based npm caching, then runs `npm ci`, lint, type checks, tests, and build before image builds. Development smoke tests repeat these commands in a writable temporary copy because the workspace mount is read-only. Production smoke tests require the built HTML/JS/CSS and absence of Node/npm. These checks are wired but Docker execution must still be verified on Actions/a Docker host. Generated assets are packaged but not yet served by Django (M2).
+CI uses `actions/setup-node@v7` with Node 24 and lockfile-based npm caching, then runs `npm ci`, lint, type checks, tests, and build before image builds. Development smoke tests repeat these commands in a writable temporary copy because the workspace mount is read-only. Production smoke tests require the built HTML/JS/CSS and absence of Node/npm. These checks are wired but Docker execution must still be verified on Actions/a Docker host. Generated assets are packaged but not yet served by Django (M2).
 
 ### Django startup
 
