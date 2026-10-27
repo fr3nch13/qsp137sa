@@ -17,6 +17,12 @@ Source: [assignment brief](../Quantum_Sky_Project_137_Software%20Engineering%20A
 - [ ] Confirm only public data and open-source tools are used; no employer material or credentials are included.
 - [ ] Record actual time spent; do not infer it from commit timestamps.
 
+### Publication decision: rewritten history and retained PDF
+
+On 2026-10-27, the assignment PDF was removed from every commit in the published `main`/`dev` branch histories, preserving all 70 development commits and the Markdown assignment. GitHub still served the PDF to an authenticated request using an old commit ID after the rewrite. Old PR references or cached objects may retain access after publication; the rewrite is not a complete server-side purge.
+
+The author explicitly accepted this residual exposure of PDF author-name metadata to proceed with publication without waiting for Support or replacing the repository. Both the GitHub repository and GHCR image package became public on 2026-10-27. Anonymous Compose-file download and `main`/`dev` image-manifest access returned HTTP 200; this verifies distribution access, not a new full image pull or application smoke test. The `main` branch still requires PRs and the `test` check, enforces protections for administrators, and blocks force-pushes. See [Git-specific decisions](../descision-notes.md#git-specific-choices) and [GitHub's removal guidance](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository). Do not present an expiration deadline or complete-erasure guarantee.
+
 ## Proposed slide coverage
 
 Audience: an operations lead and engineers. Explain operational results first, then the engineering evidence. The assignment allows any order.
@@ -111,7 +117,7 @@ User verification follow-up (2026-10-27): the user confirmed the remaining M4/M5
 | Input validation and error handling | Local backbone/CSV validation, tested merged invariants, analysis query validation, and explicit JSON errors with server-side logging are implemented. | Frontend presentation of analysis errors remains pending. | Retain invalid-input/API tests and keep internal tracebacks out of client responses. |
 | API versioning | No analysis API or compatibility policy yet. | One jointly delivered frontend/backend; no independent clients. | Define the contract; establish versioning/deprecation policy before supporting independent clients. |
 | Configuration and secrets | Runtime secret key required; local allowed hosts; private configuration excluded from images. Demo key is public and not suitable for shared use. | Deployment provisioning and managed secrets deferred. | Private random keys, approved secret delivery and rotation, HTTPS, deployment-specific host/cookie settings. |
-| Dependency and security checks | Locked dependencies, lint, unit tests, container smoke tests, and HTTP checks. | Automated vulnerability and image scanning not implemented. | Add dependency/container scans, triage findings, and establish dependency/base-image update ownership. |
+| Dependency and security checks | Locked dependencies, lint, unit tests, container smoke tests, and HTTP checks. | Dedicated SAST, DAST, secret scanning, dependency vulnerability, and container scanning jobs are not implemented. | Add the security scanning jobs proposed below, triage findings, and establish remediation and dependency/base-image update ownership. |
 
 Passing scaffold CI does not prove network-analysis correctness or production readiness.
 
@@ -139,6 +145,7 @@ The Node build stage produces static frontend assets; the browser executes the J
 
 These are proposals for evaluation, not implemented capabilities or additions to the initial assignment scope.
 
+- **Security scanning jobs:** Add static application security testing (SAST) for Python/TypeScript, secret scanning, software composition analysis (SCA) for dependency vulnerabilities, and production-container OS/package vulnerability scanning to CI. Add dynamic application security testing (DAST) against a running application in an isolated test environment with synthetic data; scan only authorized targets and include authenticated coverage once authentication exists. Produce an SBOM (software bill of materials) for releases. Select tools later, define risk-based release gates and scheduled rescans, assign remediation owners, and document time-limited exceptions. These complement tests and manual review rather than proving the application secure.
 - **Docker Compose rationale and future devcontainer integration:** Compose provides repeatable startup configuration today and a straightforward way to define companion services later. These extension points are reasons for choosing Compose, not commitments to add services:
   - Wire Compose into the devcontainer in the future while retaining development-specific tooling, workspace mounts, lifecycle hooks, and separation from production configuration.
   - Allow an optional Model Context Protocol (MCP) sidecar for development and production if needed, with environment-appropriate access controls, credentials, and network exposure.
