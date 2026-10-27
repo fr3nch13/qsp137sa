@@ -83,7 +83,39 @@ Criticality reasons are `disconnected`, `undeliverable`, and `overloaded`; any o
 
 The original topology is never mutated. Restoration means routing the original topology again, not updating shared server state. All-failure evaluation returns all 37 node and 55 link reports in deterministic node-then-link ID order. No caching, background service, new dependency, or API endpoint was added.
 
-Run `uv run --locked python manage.py test linkscope.test_failures` for twelve tests covering hand-calculated disconnection, separate failed endpoints, rerouting/overloads, strict capacity thresholds, legal-route loss despite physical connectivity, combined criticality reasons, invalid IDs, restoration, and reproducible evaluation of all 92 real failures. Measured criticality: 37 nodes and six links; detailed findings and the failed-endpoint interpretation are recorded in the interview notes. API/UI exposure remains pending.
+Run `uv run --locked python manage.py test linkscope.test_failures` for twelve tests covering hand-calculated disconnection, separate failed endpoints, rerouting/overloads, strict capacity thresholds, legal-route loss despite physical connectivity, combined criticality reasons, invalid IDs, restoration, and reproducible evaluation of all 92 real failures. Measured criticality: 37 nodes and six links; detailed findings and the failed-endpoint interpretation are recorded in the interview notes. API exposure is implemented in M6d below; UI exposure remains pending.
+
+### Network JSON API (M6d)
+
+Backend M6a-M6d is intended for one PR; frontend M6e-M6f follows in a separate PR. Complete one milestone at a time and pause for user review.
+
+`linkscope/network_api.py` adds two read-only endpoints without changing the existing `/api` greeting:
+
+| Request | Response |
+|---|---|
+| `GET /api/network` | `nodes`, `links`, `demands`, `baseline`, `criticality`. No query parameters accepted. |
+| `GET /api/analysis` | Baseline analysis; also serves as restore (no stored failure state). |
+| `GET /api/analysis?kind=node&id=Hamburg` | Analysis with Hamburg removed, including its incident links. |
+| `GET /api/analysis?kind=link&id=L12` | Analysis with just L12 removed. |
+
+JSON contract (field names are the frontend integration contract):
+
+- Node: `id: string`, `kind: string`, `longitude: number`, `latitude: number`, `transit: boolean`.
+- Link: `id: string`, `source: string`, `target: string`, `capacity: number`.
+- Demand: `id: string`, `source: string`, `target: string`, `units: number`.
+- Link load: all link fields plus `load: number`, `utilization_percent: number` (0-100 percentage scale, not a fraction; values may exceed 100).
+- Analysis: `failure: null | {kind: "node" | "link", id: string}`, `links: LinkLoad[]`, `top_five: LinkLoad[]`, `undeliverable: Demand[]`, `failed_endpoint_demands: Demand[]`, `overloaded: LinkLoad[]`, `disconnected: boolean`. Baseline has a null failure and no failed-endpoint demands; failed elements/incident links are absent from failure load results, while `/api/network` retains the full baseline topology for drawing.
+- Criticality entry: `kind: "node" | "link"`, `id: string`, `critical: boolean`, `reasons: string[]` using the M6c reason codes. `/api/network` includes all 92 entries, including noncritical elements with empty reasons.
+
+Python `TypedDict` definitions cover nodes, links, demands, loads, failure descriptors, criticality entries, analysis, and the complete network payload. Payloads use explicit field construction and failure kinds use literal node/link types. Six API tests check field shapes and real values. `HEAD` is supported; other methods are rejected before work with JSON 405 and `Allow: GET, HEAD`. The strictly read-only views have the same narrow CSRF exemption as the greeting; other views retain middleware protection. All responses are non-cacheable.
+
+Errors use `{"error": "..."}`: malformed/partial/unknown/repeated query parameters return 400, unknown element IDs 404, local `InputError` 503 (including file/row details), and NetworkX errors 500 with a generic client message. Input/analysis failures are logged with traceback; no broad exception catch or success-shaped fallback is used. This is a local-only unauthenticated API, not safe for public exposure.
+
+Each request loads the local inputs and computes its own result; no per-user state, database, cache, or additional dependency is introduced. `/api/network` computes criticality on demand for the small network; it is intended for initial page loading, not every selection change. `/api/analysis` computes only the requested baseline/failure. Test with `uv run --locked python manage.py test linkscope.test_network_api`.
+
+M6d image verification (2026-10-27): both Linux AMD64 targets built successfully using the laptop's Docker Desktop engine, and the complete image smoke script passed, including the new topology/criticality and L12 failure HTTP checks through production Gunicorn. Temporary containers were removed; the running devcontainer was not stopped.
+
+For Docker-outside-of-Docker, `.github/ci/test-images.sh` accepts `LINKSCOPE_TEST_WORKSPACE` (the workspace path on the Docker host), `LINKSCOPE_TEST_HOST` (for example `host.docker.internal`), `LINKSCOPE_TEST_DEVELOPMENT_PORT`, and `LINKSCOPE_TEST_PRODUCTION_PORT`. Defaults remain the current working directory, `127.0.0.1`, 2158 and 2159 for CI. Use unused ports such as 22158/22159 to avoid the running application. HTTP probes send `Host: localhost` to preserve Django's local host restrictions, and published ports remain loopback-only. Both test containers explicitly select Linux AMD64.
 
 ## User Interface
 
