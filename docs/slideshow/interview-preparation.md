@@ -53,6 +53,8 @@ The expected merged baseline is **37 nodes, 55 links, and 391 demands totaling 2
 | Configuration and secrets | Runtime secret key required; local allowed hosts; private configuration excluded from images. Demo key is public and not suitable for shared use. | Deployment provisioning and managed secrets deferred. | Private random keys, approved secret delivery and rotation, HTTPS, deployment-specific host/cookie settings. |
 | Dependency and security checks | Locked dependencies, lint, unit tests, container smoke tests, and HTTP checks. | Automated vulnerability and image scanning not implemented. | Add dependency/container scans, triage findings, and establish dependency/base-image update ownership. |
 
+Subsequent user decision: remove the fatal third-party Node-warning guard to keep warnings visible without blocking jobs. Both workflows now use default Node warning logging; actual action failures and frontend checked-command validation remain enforced. The guard-specific test was removed. Hosted publication after this change remains unverified.
+
 Passing scaffold CI does not prove network-analysis correctness or production readiness.
 
 ## Container architecture decision
