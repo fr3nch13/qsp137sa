@@ -63,6 +63,16 @@ Decision recorded on 2026-10-24: retain the published Linux AMD64 image and expl
 - **When to revisit:** If native ARM64 deployment or measured performance requirements justify it, build and test both architectures and publish them under one multi-platform tag.
 - **Evidence boundary:** Local configuration validation and the user's startup logs support this decision. HTTP readiness, full application functionality, and production suitability must be verified separately.
 
+## Bundled frontend and API rationale
+
+Decision clarified on 2026-10-27; this is approved design, not implemented functionality. Keep React/TypeScript and Django in one shipped image, one repository, and one Dockerfile. Gunicorn with Django routing and static-file handling will serve React at `/` and the REST API under `/api` on the same origin at port 2158. Retain the API contract without a separate frontend deployment, proxy, or CORS configuration.
+
+The Node build stage produces static frontend assets; the browser executes the JavaScript. Node/npm will also be available in the devcontainer for builds and build-watch, followed by manual browser refresh. Do not add Vite or another frontend server/HMR. Commit source, lockfiles, and build configuration, not generated bundles or `node_modules`. Production receives the compiled assets without the Node runtime.
+
+**Why:** Keep startup, release coordination, and the local demo small. The cost is coupled frontend/backend releases and a whole-image rebuild for frontend-only edits. A separate static-file serving mechanism must be wired into Django/Gunicorn; Gunicorn alone is not sufficient. Verification must cover both workspace rebuilds and a clean source-only production build.
+
+**Evolution path:** If independent releases or scaling justify it, use separate frontend and backend images in the same project/Compose file, with separate Dockerfiles/build contexts and per-image CI filtering. A further split into frontend/backend repositories and a third IaC/orchestration repository can support independent teams and environment promotion, at the cost of cross-repository API compatibility and release coordination. None of these splits is current implementation scope.
+
 ## Future / proposed changes
 
 These are proposals for evaluation, not implemented capabilities or additions to the initial assignment scope.
@@ -73,7 +83,7 @@ These are proposals for evaluation, not implemented capabilities or additions to
   - Allow Memcached or another caching sidecar and a database sidecar if future requirements justify them, with appropriate cache invalidation, persistence, backups, and service readiness.
   - The current setup remains single-service; Compose alone does not establish production readiness.
 - **Authentication and perimeter protection:** Confirm the intended users and deployment exposure. Add authentication and authorization if shared access requires them; evaluate a Web Application Firewall (WAF), request rate limits, and denial-of-service (DoS/DDoS) protection if justified by the hosting environment and project scope. Rate limiting can reduce abusive requests and expensive analysis workloads; volumetric DDoS protection generally requires upstream hosting/CDN support. These controls supplement application protection but do not replace authentication or authorization.
-- **More granular CI execution:** Avoid unnecessary image rebuilds and publication for documentation-only changes, such as `.github/*.md`. Keep lightweight checks where appropriate, and build/test images when application, dependency, container, or relevant CI inputs change. Preserve release-tag builds and ensure the required `test` check still reports a result for documentation-only PRs rather than leaving branch protection waiting on a skipped workflow.
+- **Per-image CI filtering after a service split:** Consider granular CI only with the future separate frontend/backend images described above, so each image builds when its inputs change. Keep the current bundled-image pipeline unfiltered. Any later filtering must cover shared dependencies/configuration, preserve release builds, and ensure the required `test` check reports a result rather than leaving branch protection waiting.
 
 ## Steering examples to substantiate
 
