@@ -34,7 +34,10 @@ const options = {
         build.onLoad({ filter: /[/\\]main\.tsx$/ }, async (args) => ({
           contents: await readFile(args.path, "utf8"),
           loader: "tsx",
-          watchFiles: [fileURLToPath(new URL("index.html", import.meta.url))],
+          watchFiles: [
+            fileURLToPath(new URL("index.html", import.meta.url)),
+            fileURLToPath(new URL("src/logo.svg", import.meta.url)),
+          ],
         }));
         build.onEnd(async (result) => {
           if (result.errors.length === 0) {
@@ -42,6 +45,10 @@ const options = {
             await copyFile(
               new URL("index.html", import.meta.url),
               new URL("dist/index.html", import.meta.url),
+            );
+            await copyFile(
+              new URL("src/logo.svg", import.meta.url),
+              new URL("dist/assets/logo.svg", import.meta.url),
             );
           }
         });

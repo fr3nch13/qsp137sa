@@ -118,7 +118,11 @@ test("clean source build emits HTML and bundled JavaScript/CSS", async () => {
       "utf8",
     );
     assert.match(html, /id="root"/);
-    for (const asset of ["/assets/app.js", "/assets/app.css"]) {
+    for (const asset of [
+      "/assets/app.js",
+      "/assets/app.css",
+      "/assets/logo.svg",
+    ]) {
       assert.ok(html.includes(asset));
       assert.ok(
         (await readFile(path.join(temporary, "dist", asset))).length > 0,
