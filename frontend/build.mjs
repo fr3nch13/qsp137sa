@@ -15,6 +15,7 @@ const options = {
   entryPoints: { app: "src/main.tsx" },
   outdir,
   bundle: true,
+  loader: { ".png": "file" },
   format: "esm",
   platform: "browser",
   target: ["es2022"],
