@@ -12,6 +12,8 @@ AGENTS.md
 .mypy_cache
 node_modules
 **/node_modules
+frontend/dist
+staticfiles
 .env
 .env.*
 **/.env

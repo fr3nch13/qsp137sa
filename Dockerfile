@@ -1,5 +1,17 @@
 # syntax=docker/dockerfile:1
 # Shared Python/uv foundation for development and production builds.
+FROM node:24-bookworm-slim AS node-toolchain
+
+COPY frontend/run-checked.mjs /opt/linkscope/run-checked.mjs
+
+FROM node-toolchain AS application-build
+
+WORKDIR /frontend
+COPY frontend/package.json frontend/package-lock.json frontend/.npmrc ./
+RUN node /opt/linkscope/run-checked.mjs npm ci
+COPY frontend/ ./
+RUN node /opt/linkscope/run-checked.mjs npm run build
+
 FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS base
 
 LABEL org.opencontainers.image.title="LinkScope" \
@@ -21,8 +33,13 @@ RUN groupadd --gid 10001 app \
 
 FROM base AS development
 
+COPY --from=node-toolchain /usr/local/bin/node /usr/local/bin/node
+COPY --from=node-toolchain /usr/local/lib/node_modules /usr/local/lib/node_modules
+
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl gh git \
+    && ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+    && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
     && rm -rf /var/lib/apt/lists/*
 
 USER app
@@ -33,6 +50,7 @@ CMD ["sleep", "infinity"]
 FROM base AS production
 
 COPY --chown=root:root . /app
+COPY --from=application-build --chown=root:root /frontend/dist /app/frontend/dist
 
 RUN uv sync --locked --no-dev \
     && chown root:root /app

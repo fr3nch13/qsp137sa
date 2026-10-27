@@ -152,17 +152,42 @@ Decision recorded on 2026-10-23; the Dockerfile and devcontainer foundations pac
 
 ### Bundled frontend and API decision
 
-Approved on 2026-10-27; implementation is pending. See the [architecture handoff](../docs/Quantum%20Sky%20Assignment%20Summary.md) and [implementation milestones](tasks/todo.md#bundled-frontend-and-api-milestones).
+Approved on 2026-10-27; the frontend source/build foundation (M1) and npm Docker/CI wiring are implemented, while Django serving and end-to-end container verification remain pending. See the [implementation milestones](tasks/todo.md#bundled-frontend-and-api-milestones).
 
 - Keep one repository, one Dockerfile, and one deployed application container. React/TypeScript runs in the browser; its compiled HTML, JavaScript, CSS, and other assets are static files shipped with the Python application.
 - Retain Gunicorn in production with Django routing and an appropriate static-file mechanism; Gunicorn alone does not serve static files. No Apache, nginx, reverse proxy, CORS configuration, or separate frontend deployment is needed.
 - Serve React at `/` and the REST API at `/api` and its subpaths on port 2158. Use relative API URLs. Preserve explicit API errors and missing-asset responses rather than routing them into the frontend HTML fallback.
+- M2 must first prove the minimal integration: `GET /api` returns `{"message": "Hello, world!"}` as JSON, and React fetches and displays that message at `/` with loading and explicit failure states. Verify the actual browser round trip before network-application integration; repeat the proof through the production Gunicorn image and Compose in M4-M5.
 - Add a Node frontend build stage and Node/npm tooling in the development target. The production runtime receives the compiled assets, not Node/npm. Preserve the workspace mount, development lifecycle hooks, runtime secret handling, and non-root production permissions.
 - Support `npm run build` and a build-watch command inside the devcontainer. Rebuilt assets are served by Django on `http://127.0.0.1:2158/`; manually refresh the browser. Do not add Vite, a separate frontend development server, or HMR. Select minimal build tooling and record exact working directories and commands when implemented; avoid stale asset caching in development.
 - Commit authored frontend source/assets, dependency manifests, the npm lockfile, and build configuration. Ignore `node_modules`, compiled bundles, and collected static output in Git. Docker/CI must build from source without relying on ignored workspace artifacts.
 - Keep the existing single application CI flow with no path filters, adding frontend lint, type checks, tests, and builds. Frontend-only edits rebuild the bundled image. Preserve existing branch/tag publishing rules and the Linux AMD64/emulation decision.
 - Compose continues to pull the published image; workspace edits are visible through the devcontainer, not through published-image Compose without rebuilding and publishing.
 - Future evolution, not current work: separate frontend (Node build/nginx runtime) and Django API images in the same repository/Compose project when independent releases or scaling justify it. Only then consider per-image path-filtered CI. If team ownership and release cadences diverge further, consider separate frontend/backend repositories plus an IaC/orchestration repository pinning environment image versions. Cross-repository API changes require explicit compatibility discipline.
+
+### Frontend build and validation
+
+The `frontend/` directory contains the React/TypeScript shell, authored HTML/CSS, and locked npm dependencies. Use Node.js 24 LTS and npm. esbuild bundles assets, TypeScript checks types, Biome checks lint/format, and Node's test runner with `tsx` runs component and build tests. No Vite or frontend web server is used.
+
+The npm `allowScripts` policy approves only the locked `esbuild@0.28.2` install script, which sets up and validates its platform-specific executable. Review that approval when upgrading esbuild; do not approve all dependency scripts. Use Node 24's bundled npm without a separate npm upgrade or version pin. The frontend `.npmrc` disables only npm's newer-version notification (`update-notifier=false`), an explicitly accepted exception to diagnostic enforcement. Docker copies this configuration before `npm ci`; CI runs from the frontend directory. Other Node/npm warnings and notices still fail checked validation, and audit output remains enabled.
+
+From the repository root:
+
+```sh
+cd frontend
+npm ci
+npm run build
+```
+
+Output is `frontend/dist/index.html`, `frontend/dist/assets/app.js`, and `frontend/dist/assets/app.css`. The HTML references `/assets/` URLs for later same-origin Django serving. Generated output, `node_modules`, and the reserved root `staticfiles/` collection directory are ignored by Git and excluded from Docker's source context. Production must regenerate frontend output in its build stage rather than copying local output.
+
+For iterative builds, run `npm run watch` from `frontend/`. It builds immediately and watches imported TSX/CSS plus the HTML entry, writing development bundles and printing build errors. It starts no HTTP server and does not type-check continuously; run `npm run typecheck` separately. After M2 wires Django serving and M3 integrates devcontainer startup, manually refresh `http://127.0.0.1:2158/` after a successful rebuild. At M1, the existing Django status page is unchanged and does not serve these assets.
+
+Validate from `frontend/` with `npm run lint`, `npm run typecheck`, `npm test`, and `npm run build`. `npm run format` applies Biome formatting and safe fixes. Tests cover server-rendered shell semantics, isolated source-only build output, and watch rebuilds after component/CSS/HTML edits. They do not prove browser mounting, API integration, or Django static-file serving.
+
+The Dockerfile now uses `node:24-bookworm-slim` as its Node toolchain source. Development copies Node/npm from that stage; `post_create.sh` runs `npm --prefix frontend ci` and `npm --prefix frontend run build` after Python setup. The separate `application-build` stage runs locked `npm ci` and builds from source; production copies its `dist` output without Node/npm. Rebuild the devcontainer to obtain image-provided tools. The working container also has a separately provisioned Node 24 installation for local validation.
+
+CI uses `actions/setup-node@v7` with Node 24 and lockfile-based npm caching, then runs `npm ci`, lint, type checks, tests, and build before image builds. Development smoke tests repeat these commands in a writable temporary copy because the workspace mount is read-only. Production smoke tests require the built HTML/JS/CSS and absence of Node/npm. These checks are wired but Docker execution must still be verified on Actions/a Docker host. Generated assets are packaged but not yet served by Django (M2).
 
 ### Django startup
 

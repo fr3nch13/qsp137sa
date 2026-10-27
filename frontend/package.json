@@ -1,0 +1,33 @@
+{
+  "name": "linkscope-frontend",
+  "description": "Build and validate the bundled LinkScope React frontend.",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "build": "npm run typecheck && node build.mjs",
+    "watch": "node build.mjs --watch",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test tests/*.test.tsx tests/*.test.mjs"
+  },
+  "dependencies": {
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.3",
+    "@types/node": "24.19.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "esbuild": "0.28.2",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2"
+  },
+  "allowScripts": {
+    "esbuild": true
+  }
+}

@@ -4,43 +4,55 @@
 
 ### Bundled frontend and API milestones
 
-- **Status:** Architecture documented on 2026-10-27; implementation pending.
+- **Status:** M1 implemented and locally validated on 2026-10-27; M2-M7 pending.
 - **Scope:** One shipped image and one origin on port 2158, React at `/`, Django REST API under `/api`, Gunicorn retained. No Vite/HMR, extra server, service split, or CI path filters.
 - [x] Record architecture, source-control policy, local rebuild workflow, trade-offs, and future evolution in the handoff, project context, and interview notes.
 
 #### M1: Frontend source and build foundation
 
-- [ ] Establish React/TypeScript source layout and minimal build tooling without Vite; commit npm manifests, lockfile, build configuration, and authored assets.
-- [ ] Add `npm run build` and a build-watch command, plus lint, type-check, and focused frontend tests. Document exact directories and commands.
-- [ ] Ignore dependencies, compiled bundles, and collected static output in Git; ensure clean builds do not rely on existing generated files.
+- **Status:** Complete; locally validated with Node 24.
 
-#### M2: Same-origin Django serving
+- [x] Establish React/TypeScript source layout and minimal build tooling without Vite; include npm manifests, lockfile, build configuration, and authored assets for source control.
+- [x] Add `npm run build` and a build-watch command, plus lint, type-check, and focused frontend tests. Document exact directories and commands.
+- [x] Ignore dependencies, compiled bundles, and collected static output in Git; ensure clean builds do not rely on existing generated files.
+- **Review:** `npm ci`, Biome lint/format checks, TypeScript checks, all three tests, and production frontend build passed. Tests verify shell semantics, source-only build output, and watch rebuilds for TSX, CSS, and HTML. Docker/CI npm wiring was added following review rather than leaving validation local-only. Serving the frontend remains M2.
+- **CI log follow-up:** Job `121974036972` passed. Added version-specific approval for esbuild's required install script and upgraded setup-node to v7. Job `121984240923` then failed because the checked Docker install detected bundled npm's upgrade notice. Final agreed policy: retain Node 24's bundled npm, disable only its newer-version notification through the frontend `.npmrc`, and continue failing checked validation on other warnings/notices. Docker copies `.npmrc` before dependency installation; no standalone npm upgrade is performed.
+
+#### M2: Same-origin Django serving and frontend/API proof
 
 - **Prerequisite:** M1 for generated frontend assets.
+- **Goal:** Prove the smallest working browser-to-API round trip before building the network application.
 - [ ] Wire Django routing and static-file serving for `/` and `/api`; retain Gunicorn for production without Apache/nginx or CORS.
+- [ ] Add `GET /api` returning HTTP 200 and `application/json` with `{"message": "Hello, world!"}` using Django's native JSON response support.
+- [ ] Have the React homepage fetch the relative `/api` URL and display the returned message, not a hardcoded success message. Show loading and explicit network, HTTP, or invalid-response errors.
 - [ ] Define/test the initial API response/error contract. Keep unknown API routes and missing assets out of the frontend HTML fallback.
 - [ ] Test frontend HTML/assets and API responses with debug disabled, correct content types, and appropriate development versus production caching.
+- [ ] Verify in a real browser at `http://127.0.0.1:2158/` that React loads, requests `/api` on the same origin, and displays the actual returned message. Verify a failed API request produces a visible error, not success-shaped fallback content.
+- **Acceptance gate:** Do not start M6 application integration until this browser round trip passes. Carry the same minimal proof through M3-M5 to verify rebuilds, Gunicorn, and the published container rather than assuming development success proves production packaging.
 
 #### M3: Devcontainer rebuild workflow
 
 - **Prerequisites:** M1 and M2 for end-to-end verification.
-- [ ] Provide Node/npm in the development target; preserve workspace mounts, lifecycle hooks, Python reload, and existing startup/error reporting.
+- [x] Provide Node/npm in the development target; preserve workspace mounts, lifecycle hooks, Python reload, and existing startup/error reporting. Post-create installs locked npm dependencies and builds assets; image execution validation remains pending.
 - [ ] Support initial build and explicit rebuild/watch inside the devcontainer, serving changed assets on port 2158 without an image push or a second frontend server.
 - [ ] Verify a source edit, rebuild, and manual browser refresh show the change without stale assets; verify repeat startup and clear build-failure reporting.
 
 #### M4: Single production image
 
 - **Prerequisites:** M1 and M2.
-- [ ] Add the Node application-build stage using locked `npm ci` and the frontend build; copy only required build output into the Python production runtime.
+- [x] Add the Node application-build stage using locked `npm ci` and the frontend build; copy only required build output into the Python production runtime.
 - [ ] Preserve development/production target separation, non-root permissions, runtime secrets, loopback-only Compose publishing, and explicit AMD64 selection.
 - [ ] Verify a clean build without local bundles, frontend/API HTTP responses through Gunicorn, and absence of Node/npm in the production runtime.
+- [ ] Verify the React homepage displays the message fetched from `/api` through the production Gunicorn entry point.
 
 #### M5: CI and bundled-image verification
 
 - **Prerequisites:** M3 and M4.
-- [ ] Extend the existing single CI flow with frontend lint, type-check, tests, and reproducible build checks; preserve triggers, required checks, artifact publication, and no path filtering.
+- [x] Extend the existing single CI flow with frontend lint, type-check, tests, and reproducible build checks; preserve triggers, required checks, artifact publication, and no path filtering.
 - [ ] Extend image smoke tests to verify frontend HTML/assets, API success/error behavior, and development rebuild support while retaining existing checks.
 - [ ] Validate Compose startup and browser requests on a Docker host, record actual evidence, and distinguish environment-blocked checks from passed checks.
+- [ ] Repeat the homepage-to-`/api` message proof using the published image through Compose before proceeding with full network-application integration.
+- **Partial implementation review:** Development smoke tests now run Node/npm and locked frontend validation in a writable source copy; production checks require generated assets and no Node/npm. Actionlint, shell syntax, all 20 CI-helper tests, and local frontend checks passed. Docker is unavailable locally, so actual image builds, post-create execution, and container checks remain unverified.
 
 #### M6: Network application delivery
 
@@ -54,7 +66,7 @@
 - **Prerequisites:** M5 and M6 for completed-application claims.
 - [ ] Update user instructions only as features become available; keep exact development commands in project context.
 - [ ] Record measured results, remaining limitations, and end-to-end evidence in interview notes; retain future image/repository splits and CI filtering as conditional proposals.
-- **Review:** Documentation planning only in this change; no frontend, server, dependency, ignore-file, Dockerfile, or CI implementation has been performed.
+- **Review:** Frontend tooling plus Docker/CI npm wiring are implemented. Network analysis, Django frontend serving, and end-to-end container validation remain pending.
 
 ### Docker Compose startup
 
