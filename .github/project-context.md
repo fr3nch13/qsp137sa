@@ -16,6 +16,10 @@ Build a small network-operations application that helps a team understand a Euro
 2. Which links carry the most traffic?
 3. What happens to traffic when a node or link fails?
 
+### Application delivery priority
+
+The network application is the main deliverable; container/frontend scaffolding is supporting work. The [M6 application milestones](tasks/todo.md#m6-network-application-delivery) divide implementation into validated data (R1-R4), routing/utilization (R5-R6), failure analysis (R7-R8), the JSON API, the coordinate-based map (R9-R10), and interactive fail/restore plus published-image verification (R11). Follow these acceptance gates before claiming application completion. Prefer the existing stack and small tested increments over further optional infrastructure work.
+
 ## Input Data and Network Model
 
 The application combines two inputs:
@@ -61,6 +65,26 @@ The merged baseline is expected to contain **37 nodes, 55 links, and 391 demands
   - Every remaining link whose utilization exceeds 100%.
 - Users must be able to fail and restore any node or link and see the updated failure analysis without reloading the page.
 
+### Baseline routing implementation (M6b)
+
+`linkscope/routing.py` exposes `route_traffic(topology)`. It builds an undirected NetworkX graph and restricts each demand's paths to transit-capable nodes plus that demand's endpoints. It enumerates complete unweighted shortest paths and assigns each `demand.units / path_count`; this is deliberately simple for the small assignment network, not an optimized large-network routing engine. No capacity weighting or equal-next-hop approximation is used.
+
+The immutable result contains every link's load, computed utilization percentage, and explicit undeliverable demand records. `top_five` ranks by descending utilization with link ID as the deterministic tie-breaker, returning up to five links (including zero-load links if needed). Contributions are summed with `math.fsum`; retain full floating-point precision internally and round only for display. Routing does not mutate the input or perform failure simulation.
+
+Run `uv run --locked python manage.py test linkscope.test_routing` for eight routing tests with hand-calculated expectations and real-network reproducibility. A three-path fixture proves an 8/4 split at unequal next-hop branches for a 12-unit demand, and a 10-unit variant checks fractional conservation. Real-input checks also verify the single-attached OPS-WEST carries exactly 20 units and DC-NORTH's access links carry 110 units in total.
+
+Measured baseline: all 391 demands are deliverable. Top-five values and verification evidence are recorded in the interview notes. API exposure, map rendering, and failure analysis are not implemented by M6b.
+
+### Single failures and criticality (M6c)
+
+`linkscope/failures.py` exposes `analyze_failure(topology, Failure("node" | "link", id))` and `analyze_all_failures(topology)`. Invalid kinds/identities raise `ValueError`. A node failure removes that node and its incident links; its endpoint demands are retained separately in `failed_endpoint_demands`. The remaining demands are routed with M6b's transit restrictions, with other undeliverable demands in `routing.undeliverable` and every overloaded remaining link in `overloaded`.
+
+Criticality reasons are `disconnected`, `undeliverable`, and `overloaded`; any one makes the element critical. Failed-endpoint demands count as undeliverable for criticality, not just transit losses. Disconnection means more than one component among surviving nodes, including isolated nodes; zero/one surviving node is not disconnected. Physical connectivity is distinct from legal routing connectivity because endpoints cannot carry transit traffic. Overload is strictly load greater than capacity; exactly 100% is not overloaded.
+
+The original topology is never mutated. Restoration means routing the original topology again, not updating shared server state. All-failure evaluation returns all 37 node and 55 link reports in deterministic node-then-link ID order. No caching, background service, new dependency, or API endpoint was added.
+
+Run `uv run --locked python manage.py test linkscope.test_failures` for twelve tests covering hand-calculated disconnection, separate failed endpoints, rerouting/overloads, strict capacity thresholds, legal-route loss despite physical connectivity, combined criticality reasons, invalid IDs, restoration, and reproducible evaluation of all 92 real failures. Measured criticality: 37 nodes and six links; detailed findings and the failed-endpoint interpretation are recorded in the interview notes. API/UI exposure remains pending.
+
 ## User Interface
 
 - Display the network as a map based on the backbone city coordinates.
@@ -84,7 +108,7 @@ The palette is defined by the current [frontend stylesheet](../frontend/src/styl
 
 ## Data Loading Design
 
-Decision recorded on 2026-10-23; implementation is pending.
+Decision recorded on 2026-10-23; M6a loader implemented and verified on 2026-10-27.
 
 - Use TopoHub 1.5.1, pinned in `pyproject.toml` and `uv.lock`. This selects Python for the backend.
 - Provisionally use a local `nobel-eu.txt` obtained from the [sikorski-as/sndlib native-text mirror](https://raw.githubusercontent.com/sikorski-as/sndlib/master/native/nobel-eu/nobel-eu.txt). This is a temporary source choice while the project owner contacts Quantum Sky about the unavailable official inputs. Official provenance and permitted use remain unresolved.
@@ -104,6 +128,19 @@ Decision recorded on 2026-10-23; implementation is pending.
 8. Verify the baseline totals: 37 nodes, 55 links, and 391 demands totaling 2,068 units. Test backbone parsing, CSV merging, validation errors, and those exact totals.
 
 Keep this adapter separate from routing and failure analysis. Recompute utilization from the merged network using the application's required routing rules; do not rely on TopoHub's precomputed loads.
+
+Implementation: `linkscope/topology.py` exposes `load_topology(backbone: Path, sites: Path)` with defaults pointing to the two separate files under `data/`. It returns frozen `Topology`, `Node`, `Link`, and `Demand` records. Links/demands are undirected records stored once; original backbone IDs are retained and generated access/demand IDs are namespaced. Site coordinates are deterministic offsets near the nearest reachable backbone anchors, independent of CSV row order. No input is rewritten.
+
+Native-format records are validated before the pinned TopoHub parser receives a normalized in-memory copy; this preserves precise source-file/physical-row diagnostics while accommodating the parser's formatting assumptions. The loader currently supports the supplied native format with `UNLIMITED` demand path lengths, not XML or arbitrary SNDlib extensions. Unsupported records fail explicitly. Missing/unreadable files report row 1. `InputError` is raised to the caller, never converted into an empty topology.
+
+Verify from the repository root:
+
+```sh
+uv run --locked python manage.py test linkscope.test_topology
+uv run --locked python -c 'from linkscope.topology import load_topology; t = load_topology(); print(len(t.nodes), len(t.links), len(t.demands), sum(d.units for d in t.demands))'
+```
+
+Measured output: `37 55 391 2068.0`. Eight loader tests cover real totals/checksum, explicit expected generated demand endpoints, capacities/transit roles, synthetic merge arithmetic, file/row diagnostics, CSV reordering, and byte-for-byte input preservation. The snapshot revision/retrieval/checksum and unresolved provenance/permitted-use status are recorded in [data documentation](../data/README.md). This is a callable backend loader; API integration and routing remain later milestones.
 
 ## Backend Framework Decision
 
