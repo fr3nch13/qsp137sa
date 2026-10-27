@@ -32,7 +32,7 @@ async function sourceFixture(t) {
   return temporary;
 }
 
-test("watch rebuilds component, CSS, and HTML changes", {
+test("watch rebuilds component, CSS, HTML, and logo changes", {
   timeout: 15000,
 }, async (t) => {
   const directory = await sourceFixture(t);
@@ -68,6 +68,7 @@ test("watch rebuilds component, CSS, and HTML changes", {
     ["src/App.tsx", "assets/app.js", "Watch verification"],
     ["src/styles.css", "assets/app.css", "watch-verification"],
     ["index.html", "index.html", "HTML verification"],
+    ["src/logo.svg", "assets/logo.svg", "Logo verification"],
   ]) {
     const before = builds;
     const file = path.join(directory, source);
@@ -76,10 +77,12 @@ test("watch rebuilds component, CSS, and HTML changes", {
       ? original.replace("LinkScope", marker)
       : source.endsWith(".css")
         ? `${original}\n.watch-verification { color: red; }\n`
-        : original.replace(
-            "<title>LinkScope</title>",
-            `<title>${marker}</title>`,
-          );
+        : source.endsWith(".svg")
+          ? original.replace("<svg", `<svg aria-label="${marker}"`)
+          : original.replace(
+              "<title>LinkScope</title>",
+              `<title>${marker}</title>`,
+            );
     await writeFile(file, updated);
     await waitForBuild(before);
     assert.ok(
@@ -88,6 +91,48 @@ test("watch rebuilds component, CSS, and HTML changes", {
       ),
     );
   }
+});
+
+test("watch reports build errors, removes failed output, and recovers", {
+  timeout: 15000,
+}, async (t) => {
+  const directory = await sourceFixture(t);
+  const child = spawn(process.execPath, ["build.mjs", "--watch"], {
+    cwd: directory,
+  });
+  let diagnostics = "";
+  child.stderr.on("data", (chunk) => {
+    diagnostics += chunk;
+  });
+  child.stdout.resume();
+  t.after(async () => {
+    if (child.exitCode === null) {
+      const exited = once(child, "exit");
+      child.kill("SIGTERM");
+      await exited;
+    }
+  });
+  async function waitForDiagnostic(pattern) {
+    for (let attempt = 0; attempt < 200; attempt++) {
+      assert.equal(child.exitCode, null, diagnostics);
+      if (pattern.test(diagnostics)) return;
+      await setTimeout(20);
+    }
+    assert.fail(`Watch diagnostic missing: ${diagnostics}`);
+  }
+  await waitForDiagnostic(/build finished/);
+  const source = path.join(directory, "src/App.tsx");
+  const bundle = path.join(directory, "dist/assets/app.js");
+  const original = await readFile(source, "utf8");
+  assert.ok((await readFile(bundle, "utf8")).length > 0);
+  diagnostics = "";
+  await writeFile(source, `${original}\nexport const broken = ;\n`);
+  await waitForDiagnostic(/\[ERROR\][\s\S]*build finished/);
+  await assert.rejects(readFile(bundle, "utf8"), { code: "ENOENT" });
+  diagnostics = "";
+  await writeFile(source, original.replace("LinkScope", "Watch recovery"));
+  await waitForDiagnostic(/build finished/);
+  assert.match(await readFile(bundle, "utf8"), /Watch recovery/);
 });
 
 test("clean source build emits HTML and bundled JavaScript/CSS", async () => {

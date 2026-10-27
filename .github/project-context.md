@@ -165,7 +165,7 @@ Decision recorded on 2026-10-23; the Dockerfile and devcontainer foundations pac
 
 ### Bundled frontend and API decision
 
-Approved on 2026-10-27; M1 build tooling and M2 same-origin serving/browser proof are implemented. End-to-end Docker/Compose verification remains pending. See the [implementation milestones](tasks/todo.md#bundled-frontend-and-api-milestones).
+Approved on 2026-10-27; M1 build tooling and M2 same-origin serving/browser proof are implemented. CI Docker builds and container HTTP checks have passed; published-image Compose/browser verification remains pending. See the [implementation milestones](tasks/todo.md#bundled-frontend-and-api-milestones).
 
 - Keep one repository, one Dockerfile, and one deployed application container. React/TypeScript runs in the browser; its compiled HTML, JavaScript, CSS, and other assets are static files shipped with the Python application.
 - Retain Gunicorn in production with Django routing and an appropriate static-file mechanism; Gunicorn alone does not serve static files. No Apache, nginx, reverse proxy, CORS configuration, or separate frontend deployment is needed.
@@ -198,13 +198,29 @@ npm run build
 
 Output is `frontend/dist/index.html`, `frontend/dist/assets/app.js`, and `frontend/dist/assets/app.css`. The HTML references `/assets/` URLs for later same-origin Django serving. Generated output, `node_modules`, and the reserved root `staticfiles/` collection directory are ignored by Git and excluded from Docker's source context. Production must regenerate frontend output in its build stage rather than copying local output.
 
-For iterative builds, run `npm run watch` from `frontend/`. It builds immediately and watches imported TSX/CSS plus the HTML entry, writing development bundles and printing build errors. It starts no HTTP server and does not type-check continuously; run `npm run typecheck` separately. Django now serves these assets: manually refresh `http://127.0.0.1:2158/` after a successful rebuild. Node/npm installation and an initial build are already in post-create; full rebuild/lifecycle verification remains tracked in M3.
+For iterative builds, run `npm run watch` from `frontend/`. It builds immediately and watches imported TSX/CSS plus the HTML entry and shared logo, writing development bundles and printing build errors. It starts no HTTP server and does not type-check continuously; run `npm run typecheck` separately. Django serves these assets: manually refresh `http://127.0.0.1:2158/` after a successful rebuild.
 
-Validate from `frontend/` with `npm run lint`, `npm run typecheck`, `npm test`, and `npm run build`. `npm run format` applies Biome formatting and safe fixes. Tests cover server-rendered shell semantics, isolated source-only build output, and watch rebuilds after component/CSS/HTML edits. They do not prove browser mounting, API integration, or Django static-file serving.
+The devcontainer's post-create hook installs locked dependencies and runs the initial type-checked build; its post-start hook starts the Python auto-reloading server. For day-to-day frontend edits, use these commands from the repository root:
+
+```sh
+# One-off, type-checked rebuild.
+npm --prefix frontend run build
+
+# Alternatively, keep this running while editing; stop with Ctrl+C.
+npm --prefix frontend run watch
+```
+
+No image push, container rebuild, or second frontend server is needed for workspace edits. Watch mode remains running after a syntax error and rebuilds when it is corrected. Errors identify the source file and line; a failed watch build removes generated JS/CSS, so wait for an error-free rebuild before refreshing. A one-off build exits nonzero on type/syntax errors. After stopping watch mode, run the one-off build to restore production-mode bundles.
+
+M3 verification on 2026-10-27 used image-installed Node 24.22.1 and bundled npm 11.19.1. A temporary heading edit appeared in the browser after an explicit build and manual refresh; a second edit appeared after a watch rebuild on the same port 2158, with no cache clearing. Intentional invalid syntax produced a nonzero explicit-build result and visible watch diagnostics; correcting it recovered automatically. Repeated post-start hooks preserved the working API. Temporary source edits were restored and the watcher stopped. Fresh devcontainer creation and an actual container restart remain unverified in this session because Docker is unavailable; existing dependencies were not reinstalled.
+
+Validate from `frontend/` with `npm run lint`, `npm run typecheck`, `npm test`, and `npm run build`. `npm run format` applies Biome formatting and safe fixes. Tests cover server-rendered shell semantics, isolated source-only build output, watch rebuilds after component/CSS/HTML/logo edits, and watch failure/recovery. The automated build tests alone do not prove browser mounting, API integration, or Django static-file serving; the separate browser checks above cover the live development workflow.
 
 The Dockerfile now uses `node:24-bookworm-slim` as its Node toolchain source. Development copies Node/npm from that stage; `post_create.sh` runs `npm --prefix frontend ci` and `npm --prefix frontend run build` after Python setup. The separate `application-build` stage runs locked `npm ci` and builds from source; production copies its `dist` output without Node/npm. Rebuild the devcontainer to obtain image-provided tools. The working container also has a separately provisioned Node 24 installation for local validation.
 
-CI uses `actions/setup-node@v7` with Node 24 and lockfile-based npm caching, then runs `npm ci`, lint, type checks, tests, and build before image builds. Development smoke tests repeat these commands in a writable temporary copy because the workspace mount is read-only. Production smoke tests require the built HTML/JS/CSS and absence of Node/npm. Both targets now have HTTP checks for frontend HTML, assets, greeting JSON, and missing API/asset 404s. The updated image checks still require execution on Actions/a Docker host.
+CI uses `actions/setup-node@v7` with Node 24 and lockfile-based npm caching, then runs `npm ci`, lint, type checks, tests, and build before image builds. Development smoke tests repeat these commands in a writable temporary copy because the workspace mount is read-only. Production smoke tests require the built HTML/JS/CSS and absence of Node/npm. Both targets have HTTP checks for frontend HTML, assets, greeting JSON, and missing API/asset 404s. These image checks passed on Actions in runs 40453771963 and 40455416000.
+
+M4 verification on 2026-10-27 confirmed separate development/production targets, a clean frontend build excluding workspace bundles/dependencies, runtime-supplied secrets, UID 10001, non-writable production application files, and no Node/npm in production through the successful CI smoke tests. Compose configuration retains loopback-only publishing and explicit `linux/amd64`. A separate local Gunicorn process on port 2160 served HTML/JS/CSS/logo and displayed the fetched API greeting in a real browser, then was stopped. This local browser proof is not a production-image or Compose browser check; those remain pending on a Docker host. M5 also requires hosted publication validation after removing the fatal warning guard.
 
 ### Same-origin frontend/API serving
 
