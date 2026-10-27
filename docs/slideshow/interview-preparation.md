@@ -17,6 +17,12 @@ Source: [assignment brief](../Quantum_Sky_Project_137_Software%20Engineering%20A
 - [ ] Confirm only public data and open-source tools are used; no employer material or credentials are included.
 - [ ] Record actual time spent; do not infer it from commit timestamps.
 
+### Publication decision: rewritten history and retained PDF
+
+On 2026-10-27, the assignment PDF was removed from every commit in the published `main`/`dev` branch histories, preserving all 70 development commits and the Markdown assignment. GitHub still served the PDF to an authenticated request using an old commit ID after the rewrite. Old PR references or cached objects may retain access after publication; the rewrite is not a complete server-side purge.
+
+The author explicitly accepted this residual exposure of PDF author-name metadata to proceed with publication without waiting for Support or replacing the repository. No visibility change is implied by this decision record. See [Git-specific decisions](../descision-notes.md#git-specific-choices) and [GitHub's removal guidance](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository). Do not present an expiration deadline or complete-erasure guarantee.
+
 ## Proposed slide coverage
 
 Audience: an operations lead and engineers. Explain operational results first, then the engineering evidence. The assignment allows any order.
