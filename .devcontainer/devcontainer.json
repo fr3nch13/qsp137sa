@@ -23,5 +23,19 @@
     "waitFor": "postCreateCommand",
     "postCreateCommand": "bash .devcontainer/post_create.sh",
     "postStartCommand": "bash .devcontainer/post_start.sh",
-    "remoteUser": "app"
+    "remoteUser": "app",
+    "features": {
+        "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
+        "moby": false
+        }
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "davidanson.vscode-markdownlint",
+                "timonwong.shellcheck",
+                "yzhang.markdown-all-in-one"
+            ]
+        }
+    }
 }
