@@ -7,6 +7,9 @@ permissions:
   contents: read
   packages: write
 
+env:
+  NODE_OPTIONS: --require=/tmp/linkscope-node-warnings-${{ github.run_id }}-${{ github.run_attempt }}.cjs
+
 concurrency:
   group: ci-${{ github.event.ref_type == 'tag' && format('refs/tags/{0}', github.event.ref) || github.event.ref }}
   cancel-in-progress: true
@@ -16,6 +19,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - name: Fail on Node runtime warnings
+        shell: bash
+        run: |
+          cat > "${NODE_OPTIONS#--require=}" <<'JS'
+          // Third-party actions must not succeed after emitting Node warnings.
+          process.on('warning', (warning) => {
+            throw warning;
+          });
+          JS
+
       - uses: actions/checkout@v7
         with:
           ref: main

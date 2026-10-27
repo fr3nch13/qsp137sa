@@ -2,6 +2,15 @@
 
 ## Open
 
+### Enforcing Node warnings in third-party Actions
+
+- **Status:** Implemented locally; hosted CI validation pending.
+- [x] Bootstrap a Node runtime-warning guard before JavaScript actions in every CI and deletion-workflow job, including post-action coverage.
+- [x] Test clean execution plus generic, deprecation, experimental, and deprecated Buffer-constructor warnings.
+- [x] Validate both workflows with actionlint and the new test with Ruff.
+- [ ] Resolve the upstream `download-artifact@v8` Buffer deprecation before expecting publication to pass with the guard enabled.
+- **Evidence:** Run `40453771963` passed Docker builds, container HTTP checks, tests, publication, and cleanup, but its artifact download emitted a Node deprecation warning. The policy now intentionally rejects that warning rather than reporting clean success. No runtime warning suppression or failure bypass was added. This guard covers Node warning events, not arbitrary tool text or GitHub warning annotations.
+
 ### Deleted-ref package lookup failure
 
 - [x] Remove account-wide package enumeration; query the known package's versions using the existing workflow token.
