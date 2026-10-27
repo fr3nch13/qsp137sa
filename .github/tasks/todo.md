@@ -10,6 +10,8 @@
 - [ ] Verify the direct versions request and a disposable-version deletion inside Actions; local CLI credentials do not prove workflow-token access.
 - **Local review:** All 31 CI-helper tests, focused Ruff lint/format checks, and whitespace checks passed. No live package versions were deleted and no workflow was rerun.
 - **Authentication correction:** Package-side Actions admin access is already configured, per the user. Do not infer a PAT requirement from a generic HTTP 400; GitHub supports workflow-token deletion for granular-permission registries.
+- **Deferred recovery gap (2026-10-27):** A failed branch-deletion run can leave a tagged image behind after its source branch is gone. Post-publish cleanup only removes untagged versions; it does not reconcile tags against existing Git refs, and deploying a fix does not replay old deletion events. Version `1451948720`, tagged `ci-ghcr-untagged-cleanup`, remained after [deletion run 40446804179](https://github.com/fr3nch13/qsp137sa/actions/runs/40446804179) failed. The user chose manual deletion for this instance; completion has not been verified. Further implementation is deferred for time.
+- [ ] If an image tag remains after another source-branch deletion, investigate the deletion run and address the recovery/reconciliation gap rather than repeatedly relying on manual deletion. Preserve protected-tag and shared-version safeguards.
 
 ### GHCR untagged image cleanup
 
