@@ -16,6 +16,10 @@ Build a small network-operations application that helps a team understand a Euro
 2. Which links carry the most traffic?
 3. What happens to traffic when a node or link fails?
 
+### Application delivery priority
+
+The network application is the main deliverable; container/frontend scaffolding is supporting work. The [M6 application milestones](tasks/todo.md#m6-network-application-delivery) divide implementation into validated data (R1-R4), routing/utilization (R5-R6), failure analysis (R7-R8), the JSON API, the coordinate-based map (R9-R10), and interactive fail/restore plus published-image verification (R11). Follow these acceptance gates before claiming application completion. Prefer the existing stack and small tested increments over further optional infrastructure work.
+
 ## Input Data and Network Model
 
 The application combines two inputs:
@@ -61,6 +65,58 @@ The merged baseline is expected to contain **37 nodes, 55 links, and 391 demands
   - Every remaining link whose utilization exceeds 100%.
 - Users must be able to fail and restore any node or link and see the updated failure analysis without reloading the page.
 
+### Baseline routing implementation (M6b)
+
+`linkscope/routing.py` exposes `route_traffic(topology)`. It builds an undirected NetworkX graph and restricts each demand's paths to transit-capable nodes plus that demand's endpoints. It enumerates complete unweighted shortest paths and assigns each `demand.units / path_count`; this is deliberately simple for the small assignment network, not an optimized large-network routing engine. No capacity weighting or equal-next-hop approximation is used.
+
+The immutable result contains every link's load, computed utilization percentage, and explicit undeliverable demand records. `top_five` ranks by descending utilization with link ID as the deterministic tie-breaker, returning up to five links (including zero-load links if needed). Contributions are summed with `math.fsum`; retain full floating-point precision internally and round only for display. Routing does not mutate the input or perform failure simulation.
+
+Run `uv run --locked python manage.py test linkscope.test_routing` for eight routing tests with hand-calculated expectations and real-network reproducibility. A three-path fixture proves an 8/4 split at unequal next-hop branches for a 12-unit demand, and a 10-unit variant checks fractional conservation. Real-input checks also verify the single-attached OPS-WEST carries exactly 20 units and DC-NORTH's access links carry 110 units in total.
+
+Measured baseline: all 391 demands are deliverable. Top-five values and verification evidence are recorded in the interview notes. API exposure, map rendering, and failure analysis are not implemented by M6b.
+
+### Single failures and criticality (M6c)
+
+`linkscope/failures.py` exposes `analyze_failure(topology, Failure("node" | "link", id))` and `analyze_all_failures(topology)`. Invalid kinds/identities raise `ValueError`. A node failure removes that node and its incident links; its endpoint demands are retained separately in `failed_endpoint_demands`. The remaining demands are routed with M6b's transit restrictions, with other undeliverable demands in `routing.undeliverable` and every overloaded remaining link in `overloaded`.
+
+Criticality reasons are `disconnected`, `undeliverable`, and `overloaded`; any one makes the element critical. Failed-endpoint demands count as undeliverable for criticality, not just transit losses. Disconnection means more than one component among surviving nodes, including isolated nodes; zero/one surviving node is not disconnected. Physical connectivity is distinct from legal routing connectivity because endpoints cannot carry transit traffic. Overload is strictly load greater than capacity; exactly 100% is not overloaded.
+
+The original topology is never mutated. Restoration means routing the original topology again, not updating shared server state. All-failure evaluation returns all 37 node and 55 link reports in deterministic node-then-link ID order. No caching, background service, new dependency, or API endpoint was added.
+
+Run `uv run --locked python manage.py test linkscope.test_failures` for twelve tests covering hand-calculated disconnection, separate failed endpoints, rerouting/overloads, strict capacity thresholds, legal-route loss despite physical connectivity, combined criticality reasons, invalid IDs, restoration, and reproducible evaluation of all 92 real failures. Measured criticality: 37 nodes and six links; detailed findings and the failed-endpoint interpretation are recorded in the interview notes. API exposure is implemented in M6d below; UI exposure remains pending.
+
+### Network JSON API (M6d)
+
+Backend M6a-M6d is intended for one PR; frontend M6e-M6f follows in a separate PR. Complete one milestone at a time and pause for user review.
+
+`linkscope/network_api.py` adds two read-only endpoints without changing the existing `/api` greeting:
+
+| Request | Response |
+|---|---|
+| `GET /api/network` | `nodes`, `links`, `demands`, `baseline`, `criticality`. No query parameters accepted. |
+| `GET /api/analysis` | Baseline analysis; also serves as restore (no stored failure state). |
+| `GET /api/analysis?kind=node&id=Hamburg` | Analysis with Hamburg removed, including its incident links. |
+| `GET /api/analysis?kind=link&id=L12` | Analysis with just L12 removed. |
+
+JSON contract (field names are the frontend integration contract):
+
+- Node: `id: string`, `kind: string`, `longitude: number`, `latitude: number`, `transit: boolean`.
+- Link: `id: string`, `source: string`, `target: string`, `capacity: number`.
+- Demand: `id: string`, `source: string`, `target: string`, `units: number`.
+- Link load: all link fields plus `load: number`, `utilization_percent: number` (0-100 percentage scale, not a fraction; values may exceed 100).
+- Analysis: `failure: null | {kind: "node" | "link", id: string}`, `links: LinkLoad[]`, `top_five: LinkLoad[]`, `undeliverable: Demand[]`, `failed_endpoint_demands: Demand[]`, `overloaded: LinkLoad[]`, `disconnected: boolean`. Baseline has a null failure and no failed-endpoint demands; failed elements/incident links are absent from failure load results, while `/api/network` retains the full baseline topology for drawing.
+- Criticality entry: `kind: "node" | "link"`, `id: string`, `critical: boolean`, `reasons: string[]` using the M6c reason codes. `/api/network` includes all 92 entries, including noncritical elements with empty reasons.
+
+Python `TypedDict` definitions cover nodes, links, demands, loads, failure descriptors, criticality entries, analysis, and the complete network payload. Payloads use explicit field construction and failure kinds use literal node/link types. Six API tests check field shapes and real values. `HEAD` is supported; other methods are rejected before work with JSON 405 and `Allow: GET, HEAD`. The strictly read-only views have the same narrow CSRF exemption as the greeting; other views retain middleware protection. All responses are non-cacheable.
+
+Errors use `{"error": "..."}`: malformed/partial/unknown/repeated query parameters return 400, unknown element IDs 404, local `InputError` 503 (including file/row details), and NetworkX errors 500 with a generic client message. Input/analysis failures are logged with traceback; no broad exception catch or success-shaped fallback is used. This is a local-only unauthenticated API, not safe for public exposure.
+
+Each request loads the local inputs and computes its own result; no per-user state, database, cache, or additional dependency is introduced. `/api/network` computes criticality on demand for the small network; it is intended for initial page loading, not every selection change. `/api/analysis` computes only the requested baseline/failure. Test with `uv run --locked python manage.py test linkscope.test_network_api`.
+
+M6d image verification (2026-10-27): both Linux AMD64 targets built successfully using the laptop's Docker Desktop engine, and the complete image smoke script passed, including the new topology/criticality and L12 failure HTTP checks through production Gunicorn. Temporary containers were removed; the running devcontainer was not stopped.
+
+For Docker-outside-of-Docker, `.github/ci/test-images.sh` accepts `LINKSCOPE_TEST_WORKSPACE` (the workspace path on the Docker host), `LINKSCOPE_TEST_HOST` (for example `host.docker.internal`), `LINKSCOPE_TEST_DEVELOPMENT_PORT`, and `LINKSCOPE_TEST_PRODUCTION_PORT`. Defaults remain the current working directory, `127.0.0.1`, 2158 and 2159 for CI. Use unused ports such as 22158/22159 to avoid the running application. HTTP probes send `Host: localhost` to preserve Django's local host restrictions, and published ports remain loopback-only. Both test containers explicitly select Linux AMD64.
+
 ## User Interface
 
 - Display the network as a map based on the backbone city coordinates.
@@ -84,7 +140,7 @@ The palette is defined by the current [frontend stylesheet](../frontend/src/styl
 
 ## Data Loading Design
 
-Decision recorded on 2026-10-23; implementation is pending.
+Decision recorded on 2026-10-23; M6a loader implemented and verified on 2026-10-27.
 
 - Use TopoHub 1.5.1, pinned in `pyproject.toml` and `uv.lock`. This selects Python for the backend.
 - Provisionally use a local `nobel-eu.txt` obtained from the [sikorski-as/sndlib native-text mirror](https://raw.githubusercontent.com/sikorski-as/sndlib/master/native/nobel-eu/nobel-eu.txt). This is a temporary source choice while the project owner contacts Quantum Sky about the unavailable official inputs. Official provenance and permitted use remain unresolved.
@@ -104,6 +160,19 @@ Decision recorded on 2026-10-23; implementation is pending.
 8. Verify the baseline totals: 37 nodes, 55 links, and 391 demands totaling 2,068 units. Test backbone parsing, CSV merging, validation errors, and those exact totals.
 
 Keep this adapter separate from routing and failure analysis. Recompute utilization from the merged network using the application's required routing rules; do not rely on TopoHub's precomputed loads.
+
+Implementation: `linkscope/topology.py` exposes `load_topology(backbone: Path, sites: Path)` with defaults pointing to the two separate files under `data/`. It returns frozen `Topology`, `Node`, `Link`, and `Demand` records. Links/demands are undirected records stored once; original backbone IDs are retained and generated access/demand IDs are namespaced. Site coordinates are deterministic offsets near the nearest reachable backbone anchors, independent of CSV row order. No input is rewritten.
+
+Native-format records are validated before the pinned TopoHub parser receives a normalized in-memory copy; this preserves precise source-file/physical-row diagnostics while accommodating the parser's formatting assumptions. The loader currently supports the supplied native format with `UNLIMITED` demand path lengths, not XML or arbitrary SNDlib extensions. Unsupported records fail explicitly. Missing/unreadable files report row 1. `InputError` is raised to the caller, never converted into an empty topology.
+
+Verify from the repository root:
+
+```sh
+uv run --locked python manage.py test linkscope.test_topology
+uv run --locked python -c 'from linkscope.topology import load_topology; t = load_topology(); print(len(t.nodes), len(t.links), len(t.demands), sum(d.units for d in t.demands))'
+```
+
+Measured output: `37 55 391 2068.0`. Eight loader tests cover real totals/checksum, explicit expected generated demand endpoints, capacities/transit roles, synthetic merge arithmetic, file/row diagnostics, CSV reordering, and byte-for-byte input preservation. The snapshot revision/retrieval/checksum and unresolved provenance/permitted-use status are recorded in [data documentation](../data/README.md). This is a callable backend loader; API integration and routing remain later milestones.
 
 ## Backend Framework Decision
 
@@ -165,7 +234,7 @@ Decision recorded on 2026-10-23; the Dockerfile and devcontainer foundations pac
 
 ### Bundled frontend and API decision
 
-Approved on 2026-10-27; M1 build tooling and M2 same-origin serving/browser proof are implemented. End-to-end Docker/Compose verification remains pending. See the [implementation milestones](tasks/todo.md#bundled-frontend-and-api-milestones).
+Approved on 2026-10-27; M1 build tooling and M2 same-origin serving/browser proof are implemented. CI Docker builds and container HTTP checks have passed; published-image Compose/browser verification remains pending. See the [implementation milestones](tasks/todo.md#bundled-frontend-and-api-milestones).
 
 - Keep one repository, one Dockerfile, and one deployed application container. React/TypeScript runs in the browser; its compiled HTML, JavaScript, CSS, and other assets are static files shipped with the Python application.
 - Retain Gunicorn in production with Django routing and an appropriate static-file mechanism; Gunicorn alone does not serve static files. No Apache, nginx, reverse proxy, CORS configuration, or separate frontend deployment is needed.
@@ -180,9 +249,9 @@ Approved on 2026-10-27; M1 build tooling and M2 same-origin serving/browser proo
 
 ### Frontend build and validation
 
-Both Actions workflows preload a per-run Node warning guard through workflow-level `NODE_OPTIONS`. Every job bootstraps the guard before its first JavaScript action (including checkout); it remains available for post-actions. The guard throws any Node runtime warning, including deprecation/experimental warnings in third-party actions, making the emitting process fail. This supplements the frontend text-output checker; it does not intercept arbitrary strings printed as warnings or GitHub warning annotations. Do not suppress Node warnings or use `continue-on-error` to bypass this policy.
+Third-party Actions use Node's default warning behavior: warnings remain visible in job logs without failing otherwise successful actions. At the user's request, the workflow-level fatal Node-warning guard was removed on 2026-10-27. Do not suppress warning output or bypass actual action failures with `continue-on-error`. The frontend checked-command diagnostic policy is unchanged.
 
-Run 40453771963 successfully built/tested both Docker targets, checked frontend/assets/API HTTP responses, published `:dev`, and completed cleanup. However, `download-artifact@v8` emitted Node's `Buffer()` deprecation warning. The new guard intentionally turns that known upstream warning into a failure; the next publication can be blocked until its source is addressed. Updated guards are locally tested, but hosted action execution requires CI validation. Published-image browser testing through Compose remains unverified.
+Run 40453771963 successfully built/tested both Docker targets, checked frontend/assets/API HTTP responses, published `:dev`, and completed cleanup. However, `download-artifact@v8` emitted Node's `Buffer()` deprecation warning. Run 40455416000 subsequently passed the full test job, including both image builds, container HTTP/permission/tooling checks, and production-image export/upload. Its publication failed because the former guard threw on `download-artifact@v8.0.2`'s `DEP0005` warning. Pinning v8.0.2 did not fix that upstream warning. The guard is now removed, leaving warnings logged without a custom extraction workaround; hosted publication still needs verification. Published-image browser testing through Compose remains unverified.
 
 The `frontend/` directory contains the React/TypeScript shell, authored HTML/CSS, and locked npm dependencies. Use Node.js 24 LTS and npm. esbuild bundles assets, TypeScript checks types, Biome checks lint/format, and Node's test runner with `tsx` runs component and build tests. No Vite or frontend web server is used.
 
@@ -198,13 +267,29 @@ npm run build
 
 Output is `frontend/dist/index.html`, `frontend/dist/assets/app.js`, and `frontend/dist/assets/app.css`. The HTML references `/assets/` URLs for later same-origin Django serving. Generated output, `node_modules`, and the reserved root `staticfiles/` collection directory are ignored by Git and excluded from Docker's source context. Production must regenerate frontend output in its build stage rather than copying local output.
 
-For iterative builds, run `npm run watch` from `frontend/`. It builds immediately and watches imported TSX/CSS plus the HTML entry, writing development bundles and printing build errors. It starts no HTTP server and does not type-check continuously; run `npm run typecheck` separately. Django now serves these assets: manually refresh `http://127.0.0.1:2158/` after a successful rebuild. Node/npm installation and an initial build are already in post-create; full rebuild/lifecycle verification remains tracked in M3.
+For iterative builds, run `npm run watch` from `frontend/`. It builds immediately and watches imported TSX/CSS plus the HTML entry and shared logo, writing development bundles and printing build errors. It starts no HTTP server and does not type-check continuously; run `npm run typecheck` separately. Django serves these assets: manually refresh `http://127.0.0.1:2158/` after a successful rebuild.
 
-Validate from `frontend/` with `npm run lint`, `npm run typecheck`, `npm test`, and `npm run build`. `npm run format` applies Biome formatting and safe fixes. Tests cover server-rendered shell semantics, isolated source-only build output, and watch rebuilds after component/CSS/HTML edits. They do not prove browser mounting, API integration, or Django static-file serving.
+The devcontainer's post-create hook installs locked dependencies and runs the initial type-checked build; its post-start hook starts the Python auto-reloading server. For day-to-day frontend edits, use these commands from the repository root:
+
+```sh
+# One-off, type-checked rebuild.
+npm --prefix frontend run build
+
+# Alternatively, keep this running while editing; stop with Ctrl+C.
+npm --prefix frontend run watch
+```
+
+No image push, container rebuild, or second frontend server is needed for workspace edits. Watch mode remains running after a syntax error and rebuilds when it is corrected. Errors identify the source file and line; a failed watch build removes generated JS/CSS, so wait for an error-free rebuild before refreshing. A one-off build exits nonzero on type/syntax errors. After stopping watch mode, run the one-off build to restore production-mode bundles.
+
+M3 verification on 2026-10-27 used image-installed Node 24.22.1 and bundled npm 11.19.1. A temporary heading edit appeared in the browser after an explicit build and manual refresh; a second edit appeared after a watch rebuild on the same port 2158, with no cache clearing. Intentional invalid syntax produced a nonzero explicit-build result and visible watch diagnostics; correcting it recovered automatically. Repeated post-start hooks preserved the working API. Temporary source edits were restored and the watcher stopped. Fresh devcontainer creation and an actual container restart remain unverified in this session because Docker is unavailable; existing dependencies were not reinstalled.
+
+Validate from `frontend/` with `npm run lint`, `npm run typecheck`, `npm test`, and `npm run build`. `npm run format` applies Biome formatting and safe fixes. Tests cover server-rendered shell semantics, isolated source-only build output, watch rebuilds after component/CSS/HTML/logo edits, and watch failure/recovery. The automated build tests alone do not prove browser mounting, API integration, or Django static-file serving; the separate browser checks above cover the live development workflow.
 
 The Dockerfile now uses `node:24-bookworm-slim` as its Node toolchain source. Development copies Node/npm from that stage; `post_create.sh` runs `npm --prefix frontend ci` and `npm --prefix frontend run build` after Python setup. The separate `application-build` stage runs locked `npm ci` and builds from source; production copies its `dist` output without Node/npm. Rebuild the devcontainer to obtain image-provided tools. The working container also has a separately provisioned Node 24 installation for local validation.
 
-CI uses `actions/setup-node@v7` with Node 24 and lockfile-based npm caching, then runs `npm ci`, lint, type checks, tests, and build before image builds. Development smoke tests repeat these commands in a writable temporary copy because the workspace mount is read-only. Production smoke tests require the built HTML/JS/CSS and absence of Node/npm. Both targets now have HTTP checks for frontend HTML, assets, greeting JSON, and missing API/asset 404s. The updated image checks still require execution on Actions/a Docker host.
+CI uses `actions/setup-node@v7` with Node 24 and lockfile-based npm caching, then runs `npm ci`, lint, type checks, tests, and build before image builds. Development smoke tests repeat these commands in a writable temporary copy because the workspace mount is read-only. Production smoke tests require the built HTML/JS/CSS and absence of Node/npm. Both targets have HTTP checks for frontend HTML, assets, greeting JSON, and missing API/asset 404s. These image checks passed on Actions in runs 40453771963 and 40455416000.
+
+M4 verification on 2026-10-27 confirmed separate development/production targets, a clean frontend build excluding workspace bundles/dependencies, runtime-supplied secrets, UID 10001, non-writable production application files, and no Node/npm in production through the successful CI smoke tests. Compose configuration retains loopback-only publishing and explicit `linux/amd64`. A separate local Gunicorn process on port 2160 served HTML/JS/CSS/logo and displayed the fetched API greeting in a real browser, then was stopped. This local browser proof is not a production-image or Compose browser check; those remain pending on a Docker host. M5 also requires hosted publication validation after removing the fatal warning guard.
 
 ### Same-origin frontend/API serving
 
@@ -217,6 +302,8 @@ HTML/API responses use `never_cache`. Unhashed JS/CSS use WhiteNoise `max-age=0`
 M2 verification on 2026-10-27: 11 Django tests, eight frontend tests, 31 CI-helper tests, lint/type checks, and builds passed. A real browser displayed the message from same-origin `/api`, showed errors for HTTP 503, invalid JSON contract, and network failure, and recovered after restoring the route. Desktop/mobile layout checks found no horizontal overflow; the shared logo loaded successfully. The footer reads "Quantum Sky · Project 137 · LinkScope" and "Local demonstration", using dark slate with muted white text. Gunicorn was separately started on loopback port 2160 and served HTML/JS/CSS/JSON successfully, then stopped. Review F1's CSRF/method-contract mismatch was addressed and regression-tested. This is not a Docker/Compose production-image verification.
 
 ### Django startup
+
+Verification update (2026-10-27): the user confirmed the remaining M4/M5 checks on their laptop using `docker compose up -d` and marked the published-image/browser acceptance items complete. This supersedes the pending Compose/browser status recorded above. The selected image tag/digest was not recorded. A new hosted publication after removal of the fatal warning guard remains a separate, unverified check.
 
 Run `uv sync --locked` to install dependencies. The devcontainer loads `.env.default` first and `.env` second through Docker's ordered `--env-file` arguments; values in `.env` override defaults. The template contains a public development-only placeholder key; `.env` is private and ignored by Git, and both files are excluded from image builds.
 
