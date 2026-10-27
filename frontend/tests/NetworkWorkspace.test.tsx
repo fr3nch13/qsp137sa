@@ -20,13 +20,27 @@ test("baseline findings show actual numbers, attribution-independent legend and 
   assert.match(html, /Dashed line: critical link/);
   assert.match(html, /Critical node/);
   assert.match(html, /aria-label="European network map"/);
+  assert.match(html, /<p class="visually-hidden">Drag to pan;/);
+  assert.doesNotMatch(html, /<details[^>]*\bopen\b/);
+  assert.ok(
+    html.indexOf('id="critical-heading"') <
+      html.indexOf('id="simulation-heading"'),
+  );
   assert.ok(
     html.indexOf('id="critical-heading"') <
       html.indexOf('id="traffic-heading"'),
   );
   assert.ok(
-    html.indexOf('id="traffic-heading"') < html.indexOf('id="map-heading"'),
+    html.indexOf('id="critical-heading"') < html.indexOf('id="map-heading"'),
   );
+  assert.ok(
+    html.indexOf('id="map-heading"') < html.indexOf('id="analysis-heading"'),
+  );
+  assert.ok(
+    html.indexOf('id="analysis-heading"') <
+      html.indexOf('id="traffic-heading"'),
+  );
+  assert.match(html, /class="findings-grid secondary-findings"/);
   assert.match(html, /scope="col"/);
   assert.match(html, /scope="row"/);
 });
