@@ -1,7 +1,6 @@
 # Descision Notes
 
-Scratch notes on the project design choices I make.
-These are notes I wrote myself, without the AI agent's help or input.
+Scratch notes on the project design choices I made.
 
 ## 1. IDE Setup
 
@@ -63,4 +62,9 @@ It also supports devcontainers which I like using for the following reasons:
 ## Agent Steering
 
 - When creating the initial version of the Docker file, it wanted to make base, development, devcontainer, application-build, and production images. We don't need all of that. I had it reduce to just base, development and production. We can add other images later as needed.
-- The agent created the application at /app in the Dockerfile and also make it the app user's home dir. i have it make a proper one
+- The agent created the application at /app in the Dockerfile and also make it the app user's home dir. I had it make a proper one.
+
+## Git specific choices
+
+- The original github project was set up as a private repository along with the docker images repository. After speaking with the recruiter, I was advised to make it public.
+- Before making it public, I have AI agents do a security scan and audit. It found the Author was set in the pdf copy of the assignment. I decided to have the agent just remove that pdf file, and do a git history rewrite to remove it completely. A markdown copy of the content of the pdf is preserved in the git repo and that's all I really need.
