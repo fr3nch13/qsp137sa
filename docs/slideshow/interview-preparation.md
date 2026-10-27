@@ -36,11 +36,11 @@ Audience: an operations lead and engineers. Explain operational results first, t
 
 ## Implementation status and production concerns
 
-Current functionality is limited to starting the server, viewing a status page, and observing startup/request logs. The application is local-only and unauthenticated.
+Current functionality includes a React homepage displaying a greeting fetched from the Django JSON API, loading/error states, and startup/request logs. The application is local-only and unauthenticated.
 
 Dataset loading and validation, the merged model, routing, criticality analysis, utilization rankings, map, and interactive failure/restore controls are not implemented. There are no application-generated network findings yet.
 
-The React/TypeScript source/build foundation is implemented separately from the running Django status page. Locked npm installation, lint, type checks, three component/build/watch tests, and the frontend production build passed locally. Node/npm development tooling, a frontend Docker build stage, post-create npm setup, and CI npm validation are now wired. Generated assets are not yet served by Django; Docker execution, browser integration, and end-to-end verification remain pending.
+M2 now serves React at `/`, greeting JSON at `/api`, and static assets through WhiteNoise with debug disabled. The responsive header/footer share the dark slate palette, with one `logo.svg` used in the header and as the favicon; the main workspace remains open for later functionality. Eight frontend tests, 11 Django tests, 31 CI-helper tests, lint, type checks, and builds passed locally. Browser verification confirmed the same-origin greeting, visible HTTP/network/invalid-response errors, recovery, logo loading, and desktop/mobile layout without horizontal overflow. Review F1's unsupported-method/CSRF mismatch is addressed, with CSRF-enforced regression coverage. The Gunicorn entry point separately served HTML/JS/CSS/JSON successfully. Docker build tooling and HTTP smoke checks are wired, but updated Docker/Compose execution and production-image browser verification remain pending.
 
 The expected merged baseline is **37 nodes, 55 links, and 391 demands totaling 2,068 units**. These are assignment acceptance targets, not measured outputs from the current application. Verification must also cover backbone capacity 550, undirected demands, endpoint/transit restrictions, equal shortest-path splitting, and failure reporting.
 
@@ -67,7 +67,7 @@ Decision recorded on 2026-10-24: retain the published Linux AMD64 image and expl
 
 ## Bundled frontend and API rationale
 
-Decision clarified on 2026-10-27; M1 build tooling exists, but bundled serving/deployment remains approved design, not implemented functionality. Keep React/TypeScript and Django in one shipped image, one repository, and one Dockerfile. Gunicorn with Django routing and static-file handling will serve React at `/` and the REST API under `/api` on the same origin at port 2158. Retain the API contract without a separate frontend deployment, proxy, or CORS configuration.
+Decision clarified on 2026-10-27; M1 build tooling and M2 bundled serving are implemented locally, while the updated production image still needs Docker/Compose verification. Keep React/TypeScript and Django in one shipped image, one repository, and one Dockerfile. Gunicorn with Django routing and WhiteNoise serves React at `/` and the REST API under `/api` on the same origin at port 2158. Retain the API contract without a separate frontend deployment, proxy, or CORS configuration.
 
 The Node build stage produces static frontend assets; the browser executes the JavaScript. Node/npm will also be available in the devcontainer for builds and build-watch, followed by manual browser refresh. Do not add Vite or another frontend server/HMR. Commit source, lockfiles, and build configuration, not generated bundles or `node_modules`. Production receives the compiled assets without the Node runtime.
 

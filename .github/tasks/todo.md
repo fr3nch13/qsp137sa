@@ -10,6 +10,8 @@
 - [ ] Verify the direct versions request and a disposable-version deletion inside Actions; local CLI credentials do not prove workflow-token access.
 - **Local review:** All 31 CI-helper tests, focused Ruff lint/format checks, and whitespace checks passed. No live package versions were deleted and no workflow was rerun.
 - **Authentication correction:** Package-side Actions admin access is already configured, per the user. Do not infer a PAT requirement from a generic HTTP 400; GitHub supports workflow-token deletion for granular-permission registries.
+- **Deferred recovery gap (2026-10-27):** A failed branch-deletion run can leave a tagged image behind after its source branch is gone. Post-publish cleanup only removes untagged versions; it does not reconcile tags against existing Git refs, and deploying a fix does not replay old deletion events. Version `1451948720`, tagged `ci-ghcr-untagged-cleanup`, remained after [deletion run 40446804179](https://github.com/fr3nch13/qsp137sa/actions/runs/40446804179) failed. The user chose manual deletion for this instance; completion has not been verified. Further implementation is deferred for time.
+- [ ] If an image tag remains after another source-branch deletion, investigate the deletion run and address the recovery/reconciliation gap rather than repeatedly relying on manual deletion. Preserve protected-tag and shared-version safeguards.
 
 ### GHCR untagged image cleanup
 
@@ -23,7 +25,7 @@
 
 ### Bundled frontend and API milestones
 
-- **Status:** M1 implemented and locally validated on 2026-10-27; M2-M7 pending.
+- **Status:** M1 and M2 implemented and locally validated on 2026-10-27; M3-M7 still have pending integration/delivery checks.
 - **Scope:** One shipped image and one origin on port 2158, React at `/`, Django REST API under `/api`, Gunicorn retained. No Vite/HMR, extra server, service split, or CI path filters.
 - [x] Record architecture, source-control policy, local rebuild workflow, trade-offs, and future evolution in the handoff, project context, and interview notes.
 
@@ -39,14 +41,17 @@
 
 #### M2: Same-origin Django serving and frontend/API proof
 
+- **Status:** Complete; local browser and Gunicorn proof passed. Updated Docker/Compose execution remains M4-M5.
+- **Review F1 addressed:** The read-only greeting endpoint consistently returns JSON 405 for unsupported methods with CSRF enforcement enabled. Its narrowly scoped CSRF exemption must not apply to future state-changing functionality. All 11 Django tests passed, including method-contract and retained middleware-protection regressions; see the [M2 review](../review/review-2026-10-27-0459-m2-same-origin.md).
 - **Prerequisite:** M1 for generated frontend assets.
 - **Goal:** Prove the smallest working browser-to-API round trip before building the network application.
-- [ ] Wire Django routing and static-file serving for `/` and `/api`; retain Gunicorn for production without Apache/nginx or CORS.
-- [ ] Add `GET /api` returning HTTP 200 and `application/json` with `{"message": "Hello, world!"}` using Django's native JSON response support.
-- [ ] Have the React homepage fetch the relative `/api` URL and display the returned message, not a hardcoded success message. Show loading and explicit network, HTTP, or invalid-response errors.
-- [ ] Define/test the initial API response/error contract. Keep unknown API routes and missing assets out of the frontend HTML fallback.
-- [ ] Test frontend HTML/assets and API responses with debug disabled, correct content types, and appropriate development versus production caching.
-- [ ] Verify in a real browser at `http://127.0.0.1:2158/` that React loads, requests `/api` on the same origin, and displays the actual returned message. Verify a failed API request produces a visible error, not success-shaped fallback content.
+- [x] Wire Django routing and static-file serving for `/` and `/api`; retain Gunicorn for production without Apache/nginx or CORS.
+- [x] Add `GET /api` returning HTTP 200 and `application/json` with `{"message": "Hello, world!"}` using Django's native JSON response support.
+- [x] Have the React homepage fetch the relative `/api` URL and display the returned message, not a hardcoded success message. Show loading and explicit network, HTTP, or invalid-response errors.
+- [x] Define/test the initial API response/error contract. Keep unknown API routes and missing assets out of the frontend HTML fallback.
+- [x] Test frontend HTML/assets and API responses with debug disabled, correct content types, and appropriate development versus production caching.
+- [x] Verify in a real browser at `http://127.0.0.1:2158/` that React loads, requests `/api` on the same origin, and displays the actual returned message. Verify a failed API request produces a visible error, not success-shaped fallback content.
+- **Review:** 11 Django and eight frontend tests passed, including content types, unknown paths, methods with CSRF enforcement, missing build logging/503, shared logo/favicon routing, asset rebuild visibility, and invalid API responses. Real browser verification showed the backend greeting, explicit HTTP/network/invalid-response errors, and recovery. The responsive header/open-body/footer layout uses the documented palette and a shared `logo.svg`; desktop/mobile checks found no horizontal overflow. Gunicorn separately served HTML/JS/CSS/JSON with debug disabled. WhiteNoise 6.12.0 is pinned; fixed-name assets revalidate in both development and production, with no immutable-cache claim. Ruff, frontend lint/type checks/build, all 31 CI-helper tests, and whitespace checks passed.
 - **Acceptance gate:** Do not start M6 application integration until this browser round trip passes. Carry the same minimal proof through M3-M5 to verify rebuilds, Gunicorn, and the published container rather than assuming development success proves production packaging.
 
 #### M3: Devcontainer rebuild workflow
@@ -85,7 +90,7 @@
 - **Prerequisites:** M5 and M6 for completed-application claims.
 - [ ] Update user instructions only as features become available; keep exact development commands in project context.
 - [ ] Record measured results, remaining limitations, and end-to-end evidence in interview notes; retain future image/repository splits and CI filtering as conditional proposals.
-- **Review:** Frontend tooling plus Docker/CI npm wiring are implemented. Network analysis, Django frontend serving, and end-to-end container validation remain pending.
+- **Review:** Frontend tooling, Docker/CI npm wiring, and same-origin greeting integration are implemented. Network analysis and end-to-end container validation remain pending.
 
 ### Docker Compose startup
 
