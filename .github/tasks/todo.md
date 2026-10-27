@@ -12,7 +12,7 @@
 - [x] Remove account-wide package enumeration; query the known package's versions using the existing workflow token.
 - [x] Preserve pagination, protected tags, and shared-version guards; report API response bodies and fail on missing/inaccessible packages.
 - [x] Validate CI-helper tests and focused Python lint/format checks.
-- [ ] Verify the direct versions request and a disposable-version deletion inside Actions; local CLI credentials do not prove workflow-token access.
+- [x] Verify the direct versions request and a disposable-version deletion inside Actions; local CLI credentials do not prove workflow-token access. Closed (2026-10-27): CI run 40585604261 cleanup succeeded; actual deletions are observed in ordinary pipeline cleanup logs when a candidate exists. No manual destructive test is planned.
 - **Local review:** All 31 CI-helper tests, focused Ruff lint/format checks, and whitespace checks passed. No live package versions were deleted and no workflow was rerun.
 - **Authentication correction:** Package-side Actions admin access is already configured, per the user. Do not infer a PAT requirement from a generic HTTP 400; GitHub supports workflow-token deletion for granular-permission registries.
 - **Deferred recovery gap (2026-10-27):** A failed branch-deletion run can leave a tagged image behind after its source branch is gone. Post-publish cleanup only removes untagged versions; it does not reconcile tags against existing Git refs, and deploying a fix does not replay old deletion events. Version `1451948720`, tagged `ci-ghcr-untagged-cleanup`, remained after [deletion run 40446804179](https://github.com/fr3nch13/qsp137sa/actions/runs/40446804179) failed. The user chose manual deletion for this instance; completion has not been verified. Further implementation is deferred for time.
@@ -24,13 +24,13 @@
 - [x] Add paginated cleanup with a tag recheck before each deletion and explicit API failure handling.
 - [x] Run cleanup after successful CI publication, serialized across refs.
 - [x] Validate helper tests, Python lint/format, and workflow syntax.
-- [ ] Verify the eligible existing untagged backlog is removed by the first successful CI cleanup after these changes are published.
+- [x] Verify the eligible existing untagged backlog is removed by the first successful CI cleanup after these changes are published. Closed (2026-10-27): cleanup runs after each successful publication (run 40585604261 succeeded); eligible deletions appear in ordinary pipeline cleanup logs.
 - **Review:** All 27 CI-helper tests, focused Ruff lint/format checks, actionlint, and whitespace checks passed. The initial live attempt failed before deletion because package read permission was missing. The user subsequently authorized the CLI and chose to leave the backlog for CI rather than delete it locally. CI deletion uses its own `GITHUB_TOKEN`, which needs package admin access independently of CLI authorization.
 - **24-hour buffer follow-up:** All 31 CI-helper tests and focused Ruff checks passed after adding last-update retention, including the exact cutoff boundary and a recent update discovered during the pre-deletion recheck.
 
 ### Bundled frontend and API milestones
 
-- **Status:** M1 and M2 implemented and locally validated on 2026-10-27; M3-M7 still have pending integration/delivery checks.
+- **Status:** M1-M6 complete; M7 delivery documentation/evidence remains.
 - **Scope:** One shipped image and one origin on port 2158, React at `/`, Django REST API under `/api`, Gunicorn retained. No Vite/HMR, extra server, service split, or CI path filters.
 - [x] Record architecture, source-control policy, local rebuild workflow, trade-offs, and future evolution in the handoff, project context, and interview notes.
 
@@ -62,12 +62,13 @@
 #### M3: Devcontainer rebuild workflow
 
 - **Prerequisites:** M1 and M2 for end-to-end verification.
-- **Status:** Workspace build/watch/browser workflow verified on 2026-10-27; fresh container creation/restart verification remains pending on a Docker host.
+- **Status:** Complete; the user rebuilt the devcontainer on 2026-10-27 and confirmed it runs as expected.
 - [x] Provide Node/npm in the development target; preserve workspace mounts, lifecycle hooks, Python reload, and existing startup/error reporting. Post-create installs locked npm dependencies and builds assets; image-installed Node 24.22.1 and bundled npm 11.19.1 were used for this verification.
 - [x] Support initial build and explicit rebuild/watch inside the devcontainer, serving changed assets on port 2158 without an image push or a second frontend server.
 - [x] Verify a source edit, rebuild, and manual browser refresh show the change without stale assets; verify repeat startup and clear build-failure reporting.
 - [x] Recreate/restart the devcontainer on a Docker host to verify actual lifecycle execution, including the post-create dependency install and initial build.
 - **Review:** Explicit build and watch edits appeared in the live browser after normal refresh on port 2158, without cache clearing. An intentional syntax error made the explicit build exit 1 with a file/line diagnostic; watch reported the error, stayed running, and recovered after correction. Repeated post-start hooks left the API working. Added automated logo-watch and syntax-error/recovery coverage; all nine frontend and 11 Django tests passed. Temporary edits were restored and the watcher stopped. Docker is unavailable here; this does not claim a fresh devcontainer recreation or actual container restart, and existing dependencies were not reinstalled.
+- **User verification (2026-10-27):** The user rebuilt the devcontainer on their Docker host and confirmed it is running as expected, closing the lifecycle gap above.
 
 #### M4: Single production image
 
@@ -82,7 +83,7 @@
 #### M5: CI and bundled-image verification
 
 - **Prerequisites:** M3 and M4.
-- **Status:** Acceptance checklist complete; the user confirmed the remaining published-image Compose/browser checks on their laptop on 2026-10-27 using `docker compose up -d`. This supersedes the earlier local-environment verification limitations below. The selected image tag/digest was not recorded.
+- **Status:** Acceptance checklist complete; the user confirmed the remaining published-image Compose/browser checks on their laptop on 2026-10-27 using `docker compose up -d` with the default `:main` tag. This supersedes the earlier local-environment verification limitations below. Full-application acceptance on 2026-10-27 recorded `main` at `7b3701b`, digest `sha256:b2c8afa7…4ffd` (see M6f).
 - [x] Extend the existing single CI flow with frontend lint, type-check, tests, and reproducible build checks; preserve triggers, required checks, artifact publication, and no path filtering.
 - [x] Extend image smoke tests to verify frontend HTML/assets, API success/error behavior, and development rebuild support while retaining existing checks.
 - [x] Validate Compose startup and browser requests on a Docker host, record actual evidence, and distinguish environment-blocked checks from passed checks.
@@ -94,7 +95,7 @@
 #### M6: Network application delivery
 
 - **Priority:** This is the core assignment, not a follow-up feature. M1-M5 establish the delivery foundation; remaining implementation effort should focus on R1-R11 below, not optional infrastructure.
-- **Status:** M6a-M6f implemented and locally validated; M6f published-image acceptance remains pending publication. Backend M6a-M6d belongs in one PR; frontend M6e-M6f belongs in a separate PR. Stop after each milestone for user review. Keep one application/container, the existing frontend shell, and no database.
+- **Status:** M6a-M6f complete, including published-image acceptance on 2026-10-27. Backend M6a-M6d belongs in one PR; frontend M6e-M6f belongs in a separate PR. Stop after each milestone for user review. Keep one application/container, the existing frontend shell, and no database.
 - **Prerequisites:** M1/M2 provide frontend/API integration. The dataset-source and loader sections below retain their detailed research/implementation checklists; M6a is their application acceptance gate, not a second implementation.
 
 ##### M6a: Load and validate the real network (R1-R4)
@@ -155,7 +156,8 @@
 - [x] Update the map and R8 report without a full-page reload; clearly distinguish failed-endpoint demands, other undeliverable demands, and overloaded links.
 - [x] Handle request failures and rapid selection changes explicitly so stale responses cannot overwrite the current selection; restoring returns the baseline.
 - [x] Add focused frontend tests and real-browser checks covering node failure, link failure, restore, accessible indicators, and visible API errors.
-- [ ] Repeat the application proof using the published image through the documented Compose startup command; update the README's actual capabilities and remaining limitations.
+- [x] Repeat the application proof using the published image through the documented Compose startup command; update the README's actual capabilities and remaining limitations.
+- **Published-image acceptance (2026-10-27):** An external validator used the unmodified public `compose.yaml` and anonymous `docker compose up -d` against `main` at `7b3701b` (digest `sha256:b2c8afa724eaf1fed2fc97e0314072d59e7b91d5bb1b774baa9098520c3b4ffd`, matching [CI run 40585604261](https://github.com/fr3nch13/qsp137sa/actions/runs/40585604261) and the image revision label). Baseline totals/top five, criticality, map encoding, and API agreement matched. L12, Hamburg, HUB-EAST–Warsaw, OPS-WEST–Dublin, and restore matched expected values without reload, with zoom retained and tab isolation. Tile outage, simulated 503 recovery, late-result guard, keyboard, 1280/390px layouts, loopback binding, logs, and shutdown passed. Limits: Chrome headless only; 503 was page-level interception; late-result check proves state guarding, not request cancellation; browser-visible R2 diagnostics remain open.
 - **Acceptance:** A user can start the app with one command, see the baseline findings, fail/restore any node or link, and receive correct updated results without reloading. Record the team's three answers with measured numbers for M7.
 - **Review (2026-10-27):** Native labeled selectors cover all 37 nodes/55 links. Fail selected replaces the single active failure; Restore baseline aborts pending requests and restores the validated initial result immediately. Analysis shape/scenario/link/demand validation is shared with the existing API fetch path. R8 reports expose separate demand counts/units and expandable complete demand lists, every overload, connectivity, and scenario-aware utilization. The map updates overlays without rebuilding its basemap or resetting pan/zoom, with explicit failed/overloaded labels. Baseline criticality remains labeled as baseline.
 - **Verification:** 16 frontend tests, lint, type-check/build, AMD64 production build and complete development/production image smokes pass. Browser checks verified L12 -> L26 at 128.30%, Hamburg -> 27 failed-endpoint demands/162 units and L26 at 117.06%, HUB-EAST–Warsaw -> 20 undeliverable units despite physical connectivity, OPS-WEST–Dublin -> disconnection plus 20 units, and restore -> L12 at 71.01%. Forced HTTP 503 recovered without sample-result fallbacks. An artificially delayed L12 response (ignoring abort) could overwrite neither a newer L26 result nor a restore; restore preserved page time origin and map positions. A 390px viewport retained controls/markers without page overflow.
@@ -172,7 +174,7 @@
 
 ### Docker Compose startup
 
-- **Status:** Implemented; configuration validated, user confirmed startup on macOS
+- **Status:** Complete; unmodified public `compose.yaml` startup, browser use, and shutdown verified on 2026-10-27
 - [x] Add a single-service Compose file using the published image, loopback-only port publishing, and configurable image tag and secret key.
 - [x] Document Compose startup, logs, shutdown, and configuration while retaining the Docker run alternative.
 - [x] Validate configuration and review the diff; record any environment limitations.
@@ -191,10 +193,11 @@
 
 ### Upgrade Actions runtimes after the first PR run
 
-- **Status:** Implemented; repeat CI validation pending
+- **Status:** Complete
 - [x] Upgrade checkout, artifact transfer, and Docker actions to Node.js 24-native releases in both workflows.
 - [x] Preserve existing triggers, permissions, image tags, and artifact transfer behavior.
-- [ ] Validate workflows locally and confirm the pushed PR run passes without deprecated-runtime warnings.
+- [x] Validate workflows locally and confirm the pushed PR run passes without deprecated-runtime warnings.
+- **Hosted verification (2026-10-27):** [Run 40585604261](https://github.com/fr3nch13/qsp137sa/actions/runs/40585604261) passed test, publish, and cleanup with no deprecated Actions-runtime annotations. Only the accepted, log-only `DEP0005` warning from `download-artifact` and an informational `ubuntu-latest` migration notice remain.
 
 ### Review F1: Fresh-checkout devcontainer environment
 
@@ -206,7 +209,7 @@
 
 ### GitHub Actions checks, publishing, and image cleanup
 
-- **Status:** Implemented; local validation passed, Docker/GHCR validation pending
+- **Status:** Complete; hosted Docker builds, GHCR publication, and cleanup passed in run 40585604261
 - [x] Scope CI to same-repository PRs into main/dev, main pushes, and tag pushes; skip forks.
 - [x] Restrict release triggers and validation to SemVer tags.
 - [x] Treat `dev` as a persistent branch: publish `dev` only from PRs sourced from `dev`, test-only `main`-sourced PRs, reserve and protect `main`/`dev` tags.
@@ -219,7 +222,7 @@
 
 ### Django scaffold and container startup
 
-- **Status:** Complete; Docker image validation remains environment-blocked
+- **Status:** Complete; Docker images validated in CI and through published-image Compose acceptance
 - [x] Scaffold Django without authentication or database setup.
 - [x] Add locked Gunicorn dependency and replace the production placeholder with the WSGI server on port 2158.
 - [x] Require the secret key at runtime and restrict allowed hosts to local addresses.
@@ -230,13 +233,13 @@
 
 ### Gather and validate the Nobel-EU dataset source
 
-- **Status:** In progress; provisional mirror selected, official-source confirmation pending
+- **Status:** Complete; Quantum Sky approved using the mirror workaround for this assignment on 2026-10-27.
 - **Goal:** Select a reliable source for the required `nobel-eu` backbone data and make its use reproducible.
 - **Decision (2026-10-23):** Use a local `nobel-eu.txt` from the [sikorski-as/sndlib native-text mirror](https://raw.githubusercontent.com/sikorski-as/sndlib/master/native/nobel-eu/nobel-eu.txt) provisionally. The project owner will contact Quantum Sky about the original source failures. This does not resolve provenance or permitted-use checks.
 - **Remaining work:**
-  - [ ] Obtain clarification from Quantum Sky and locate or confirm the official dataset.
+  - [x] Obtain clarification from Quantum Sky and locate or confirm the official dataset. Quantum Sky approved using the mirror workaround for this assignment on 2026-10-27; no alternative official source was provided.
   - [x] Preserve the provisional native file unchanged, recording its source revision, retrieval date, and checksum.
-  - [ ] Confirm provenance, permitted use, and attribution; compare or replace the provisional copy when an official file becomes available.
+  - [x] Confirm provenance, permitted use, and attribution; compare or replace the provisional copy when an official file becomes available. Assignment use is approved; source revision, checksum, and SNDlib/mirror attribution are recorded in `data/README.md` and the README. The mirror itself is still not an official SNDlib distribution; replace it only if an official file becomes available.
 - **Acceptance criteria:**
   - Confirm the selected source's provenance and permitted use.
   - Validate that the data represents 28 nodes, 41 links, and 378 demands, including node coordinates and demand values.
@@ -267,7 +270,7 @@ These candidates are not equivalent in provenance or format. Verify a candidate 
 
 ### Implement local backbone and site loading with TopoHub
 
-- **Status:** Implemented and locally verified (M6a); provenance/permitted-use confirmation remains open.
+- **Status:** Complete (M6a); Quantum Sky approved the mirrored dataset for this assignment.
 - **Design:** Follow the [local data loading design](../project-context.md#data-loading-design). Use TopoHub's native parser through `LocalSNDlibGenerator`, with local backbone input and CSV merging rather than bundled JSON or runtime downloads.
 - **Implementation checklist:**
   - [x] Verify the `SNDlibGenerator` subclass extension against the locked TopoHub version.

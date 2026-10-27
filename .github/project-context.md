@@ -158,7 +158,7 @@ The palette is defined by the current [frontend stylesheet](../frontend/src/styl
 Decision recorded on 2026-10-23; M6a loader implemented and verified on 2026-10-27.
 
 - Use TopoHub 1.5.1, pinned in `pyproject.toml` and `uv.lock`. This selects Python for the backend.
-- Provisionally use a local `nobel-eu.txt` obtained from the [sikorski-as/sndlib native-text mirror](https://raw.githubusercontent.com/sikorski-as/sndlib/master/native/nobel-eu/nobel-eu.txt). This is a temporary source choice while the project owner contacts Quantum Sky about the unavailable official inputs. Official provenance and permitted use remain unresolved.
+- Provisionally use a local `nobel-eu.txt` obtained from the [sikorski-as/sndlib native-text mirror](https://raw.githubusercontent.com/sikorski-as/sndlib/master/native/nobel-eu/nobel-eu.txt). Quantum Sky approved using the mirror workaround for this assignment on 2026-10-27; the mirror is not an official SNDlib distribution.
 - Preserve the downloaded file unchanged and record its source, retrieval date, source revision, and checksum. Do not fetch it at application startup or silently fall back to another dataset.
 - Do not use TopoHub's bundled JSON as the application's input. Use an application-owned `LocalSNDlibGenerator` subclass of `topohub.providers.sndlib.SNDlibGenerator` to read our local native-text file instead of downloading it.
 - The loader must accept both the backbone file and `sites.csv`, returning a single merged topology object. Extend the earlier local-file prototype with CSV validation and merging; overriding `download_topo()` alone is not sufficient.
@@ -187,7 +187,7 @@ uv run --locked python manage.py test linkscope.test_topology
 uv run --locked python -c 'from linkscope.topology import load_topology; t = load_topology(); print(len(t.nodes), len(t.links), len(t.demands), sum(d.units for d in t.demands))'
 ```
 
-Measured output: `37 55 391 2068.0`. Eight loader tests cover real totals/checksum, explicit expected generated demand endpoints, capacities/transit roles, synthetic merge arithmetic, file/row diagnostics, CSV reordering, and byte-for-byte input preservation. The snapshot revision/retrieval/checksum and unresolved provenance/permitted-use status are recorded in [data documentation](../data/README.md). This is a callable backend loader; API integration and routing remain later milestones.
+Measured output: `37 55 391 2068.0`. Eight loader tests cover real totals/checksum, explicit expected generated demand endpoints, capacities/transit roles, synthetic merge arithmetic, file/row diagnostics, CSV reordering, and byte-for-byte input preservation. The snapshot revision/retrieval/checksum and assignment-use approval are recorded in [data documentation](../data/README.md). This is a callable backend loader; API integration and routing remain later milestones.
 
 ## Backend Framework Decision
 
@@ -213,7 +213,7 @@ The initial API is unauthenticated and must not be exposed to shared or public n
 
 Decision recorded on 2026-10-23. These are implementation commitments, not claims of completed functionality. The assignment asks what was implemented, why anything was deferred, and what a first internal release would require, explicitly preferring "two done well to six done badly."
 
-Focus on **input validation and error handling** and **dependency and security checks**. Validation directly supports R2 and the credibility of the network results. Supply-chain checks address the third-party package, provisional dataset source, frontend dependencies, and container image without expanding the application into a larger platform.
+Focus on **input validation and error handling** and **dependency and security checks**. Validation directly supports R2 and the credibility of the network results. Supply-chain checks address the third-party package, mirrored dataset source, frontend dependencies, and container image without expanding the application into a larger platform.
 
 | Concern | Initial version and rationale | First internal release |
 |---|---|---|
@@ -249,7 +249,7 @@ Decision recorded on 2026-10-23; the Dockerfile and devcontainer foundations pac
 
 ### Bundled frontend and API decision
 
-Approved on 2026-10-27; M1 build tooling and M2 same-origin serving/browser proof are implemented. CI Docker builds and container HTTP checks have passed; published-image Compose/browser verification remains pending. See the [implementation milestones](tasks/todo.md#bundled-frontend-and-api-milestones).
+Approved on 2026-10-27; M1 build tooling and M2 same-origin serving/browser proof are implemented. CI Docker builds and container HTTP checks have passed; published-image Compose/browser acceptance of the full application passed on 2026-10-27 (`main` at `7b3701b`, digest `sha256:b2c8afa7…4ffd`, CI run 40585604261). See the [implementation milestones](tasks/todo.md#bundled-frontend-and-api-milestones).
 
 - Keep one repository, one Dockerfile, and one deployed application container. React/TypeScript runs in the browser; its compiled HTML, JavaScript, CSS, and other assets are static files shipped with the Python application.
 - Retain Gunicorn in production with Django routing and an appropriate static-file mechanism; Gunicorn alone does not serve static files. No Apache, nginx, reverse proxy, CORS configuration, or separate frontend deployment is needed.
@@ -296,7 +296,7 @@ npm --prefix frontend run watch
 
 No image push, container rebuild, or second frontend server is needed for workspace edits. Watch mode remains running after a syntax error and rebuilds when it is corrected. Errors identify the source file and line; a failed watch build removes generated JS/CSS, so wait for an error-free rebuild before refreshing. A one-off build exits nonzero on type/syntax errors. After stopping watch mode, run the one-off build to restore production-mode bundles.
 
-M3 verification on 2026-10-27 used image-installed Node 24.22.1 and bundled npm 11.19.1. A temporary heading edit appeared in the browser after an explicit build and manual refresh; a second edit appeared after a watch rebuild on the same port 2158, with no cache clearing. Intentional invalid syntax produced a nonzero explicit-build result and visible watch diagnostics; correcting it recovered automatically. Repeated post-start hooks preserved the working API. Temporary source edits were restored and the watcher stopped. Fresh devcontainer creation and an actual container restart remain unverified in this session because Docker is unavailable; existing dependencies were not reinstalled.
+M3 verification on 2026-10-27 used image-installed Node 24.22.1 and bundled npm 11.19.1. A temporary heading edit appeared in the browser after an explicit build and manual refresh; a second edit appeared after a watch rebuild on the same port 2158, with no cache clearing. Intentional invalid syntax produced a nonzero explicit-build result and visible watch diagnostics; correcting it recovered automatically. Repeated post-start hooks preserved the working API. Temporary source edits were restored and the watcher stopped. Fresh devcontainer creation and an actual container restart remain unverified in this session because Docker is unavailable; existing dependencies were not reinstalled. Follow-up (2026-10-27): the user rebuilt the devcontainer on their Docker host and confirmed it runs as expected.
 
 Validate from `frontend/` with `npm run lint`, `npm run typecheck`, `npm test`, and `npm run build`. `npm run format` applies Biome formatting and safe fixes. Tests cover server-rendered shell semantics, isolated source-only build output, watch rebuilds after component/CSS/HTML/logo edits, and watch failure/recovery. The automated build tests alone do not prove browser mounting, API integration, or Django static-file serving; the separate browser checks above cover the live development workflow.
 
@@ -318,7 +318,7 @@ M2 verification on 2026-10-27: 11 Django tests, eight frontend tests, 31 CI-help
 
 ### Django startup
 
-Verification update (2026-10-27): the user confirmed the remaining M4/M5 checks on their laptop using `docker compose up -d` and marked the published-image/browser acceptance items complete. This supersedes the pending Compose/browser status recorded above. The selected image tag/digest was not recorded. A new hosted publication after removal of the fatal warning guard remains a separate, unverified check.
+Verification update (2026-10-27): the user confirmed the remaining M4/M5 checks on their laptop using `docker compose up -d` and marked the published-image/browser acceptance items complete. This supersedes the pending Compose/browser status recorded above. The user ran the default `:main` tag; that run's digest was not recorded. Hosted publication after removal of the fatal warning guard is now verified: CI run 40585604261 on `7b3701b` passed test, publish, and cleanup, and the published digest was validated through anonymous Compose/browser acceptance. GHCR deletion/backlog cleanup is observed through ordinary pipeline logs when candidates exist.
 
 Run `uv sync --locked` to install dependencies. The devcontainer loads `.env.default` first and `.env` second through Docker's ordered `--env-file` arguments; values in `.env` override defaults. The template contains a public development-only placeholder key; `.env` is private and ignored by Git, and both files are excluded from image builds.
 
@@ -413,11 +413,11 @@ The README is for end users. Keep it focused on the product overview, implemente
 ### Unavailable official backbone inputs
 
 - **Unclear:** Whether the assignment's SNDlib download failures are intentional and which alternative source is acceptable. On 2026-10-23, normal requests failed TLS hostname verification; diagnostic requests bypassing that check returned HTTP 404 for both assigned files. Bypassing TLS verification therefore did not resolve the missing inputs.
-- **Decision:** Proceed provisionally with a local `nobel-eu.txt` from the [sikorski-as/sndlib mirror](https://raw.githubusercontent.com/sikorski-as/sndlib/master/native/nobel-eu/nobel-eu.txt), fetched with TLS verification enabled. Use the agreed TopoHub local-file adapter rather than its bundled JSON or runtime downloads, and merge the assignment's `sites.csv` as described in the [data loading design](#data-loading-design).
+- **Decision:** Proceed with a local `nobel-eu.txt` from the [sikorski-as/sndlib mirror](https://raw.githubusercontent.com/sikorski-as/sndlib/master/native/nobel-eu/nobel-eu.txt), fetched with TLS verification enabled. Use the agreed TopoHub local-file adapter rather than its bundled JSON or runtime downloads, and merge the assignment's `sites.csv` as described in the [data loading design](#data-loading-design).
 - **Evidence:** Parsing the mirror produced 28 nodes, 41 links, and 378 demands totaling 1,898 units. With the assignment's additions, those figures yield 37 nodes, 55 links, and 391 demands totaling 2,068 units. Matching counts do not prove official provenance.
-- **Open follow-up:** The project owner will contact Quantum Sky for clarification or an official source. Preserve source revision, retrieval date, checksum, and attribution when acquiring the local copy; compare or replace it when an official file becomes available. Source selection is recorded, but official provenance and permitted use remain unresolved. Track this in the [resource-gathering task](tasks/todo.md#gather-and-validate-the-nobel-eu-dataset-source).
+- **Resolution (2026-10-27):** Quantum Sky approved using the mirror workaround for this assignment on 2026-10-27 and did not provide an alternative source. Source revision, retrieval date, checksum, and attribution are recorded; compare or replace the copy if an official file becomes available. Track this in the [resource-gathering task](tasks/todo.md#gather-and-validate-the-nobel-eu-dataset-source).
 
-Use this record when explaining the assignment's "Unclear" topic: distinguish the verified access failures, our provisional engineering decision, and the clarification still outstanding.
+Use this record when explaining the assignment's "Unclear" topic: distinguish the verified access failures, our engineering workaround, and Quantum Sky's approval of it.
 
 ## Known Issues
 
