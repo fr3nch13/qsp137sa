@@ -36,19 +36,60 @@ Audience: an operations lead and engineers. Explain operational results first, t
 
 ## Implementation status and production concerns
 
-Current functionality includes a React homepage displaying a greeting fetched from the Django JSON API, loading/error states, and startup/request logs. The application is local-only and unauthenticated.
+Current functionality includes a React homepage displaying a greeting fetched from the Django JSON API, loading/error states, and startup/request logs. M6d also exposes topology, baseline/criticality and single-failure reports through read-only JSON endpoints. The application is local-only and unauthenticated.
 
-Dataset loading and validation, the merged model, routing, criticality analysis, utilization rankings, map, and interactive failure/restore controls are not implemented. There are no application-generated network findings yet.
+Dataset loading/validation and the merged model are implemented in M6a; baseline routing and utilization rankings in M6b; single failures and criticality in M6c; network/analysis JSON endpoints in M6d. The map and interactive failure/restore controls remain unimplemented. Results below are available through the analysis API, not yet through the greeting UI.
 
-M2 now serves React at `/`, greeting JSON at `/api`, and static assets through WhiteNoise with debug disabled. The responsive header/footer share the dark slate palette, with one `logo.svg` used in the header and as the favicon; the main workspace remains open for later functionality. Eight frontend tests, 11 Django tests, 31 CI-helper tests, lint, type checks, and builds passed locally. Browser verification confirmed the same-origin greeting, visible HTTP/network/invalid-response errors, recovery, logo loading, and desktop/mobile layout without horizontal overflow. Review F1's unsupported-method/CSRF mismatch is addressed, with CSRF-enforced regression coverage. The Gunicorn entry point separately served HTML/JS/CSS/JSON successfully. Docker build tooling and HTTP smoke checks are wired, but updated Docker/Compose execution and production-image browser verification remain pending.
+M6d uses GET `/api/network` for the complete topology/baseline/criticality and GET `/api/analysis` for baseline or one `kind`/`id` simulation. Restoring is another baseline request, not a server-side mutation. Six API tests verify real response shapes/values, both failure types, restore and independent clients, invalid queries, read-only methods with CSRF enforcement, and logged JSON input/analysis errors. All 45 backend tests passed. No frontend code or dependency was changed; backend M6a-M6d is intended for one PR, followed by a separate frontend PR. Docker smoke tests include the new endpoints but still require hosted execution of the updated script.
 
-The expected merged baseline is **37 nodes, 55 links, and 391 demands totaling 2,068 units**. These are assignment acceptance targets, not measured outputs from the current application. Verification must also cover backbone capacity 550, undirected demands, endpoint/transit restrictions, equal shortest-path splitting, and failure reporting.
+M6d Docker follow-up (2026-10-27): after host Docker access was enabled, both AMD64 targets built successfully and the complete image smoke script passed on the laptop engine. Both development Django and production Gunicorn served the real network, baseline/criticality, and the L12 failure report correctly. Alternate loopback ports 22158/22159 preserved the running devcontainer; temporary containers were cleaned up. This closes the M6d review's image-execution gap; frontend integration remains separate.
+
+Delivery-plan correction: the core application was previously compressed into three M6 checklist items despite covering R1-R11. It is now split into M6a-M6f with independent acceptance gates for data, routing, failure analysis, API, map, and interactive delivery. Prioritize these over optional infrastructure; derive presentation findings from measured application results and hand-checked test expectations, not scaffold CI.
+
+M2 now serves React at `/`, greeting JSON at `/api`, and static assets through WhiteNoise with debug disabled. The responsive header/footer share the dark slate palette, with one `logo.svg` used in the header and as the favicon; the main workspace remains open for later functionality. Eight frontend tests, 11 Django tests, 31 CI-helper tests, lint, type checks, and builds passed locally at M2. Browser verification confirmed the same-origin greeting, visible HTTP/network/invalid-response errors, recovery, logo loading, and desktop/mobile layout without horizontal overflow. Review F1's unsupported-method/CSRF mismatch is addressed, with CSRF-enforced regression coverage. The Gunicorn entry point separately served HTML/JS/CSS/JSON successfully. CI Docker builds and HTTP smoke checks subsequently passed; production-image Compose/browser verification remains pending.
+
+The loader now measures **37 nodes, 55 links, and 391 demands totaling 2,068 units**, matching the assignment acceptance targets. Eight loader tests verify real-input totals, checksum and unchanged separate source files, generated demands, backbone capacity 550, endpoint/transit roles, CSV row-order independence, and file/row validation errors. A small synthetic merge has independently calculated expectations (6 nodes, 5 links, 4 demands, 77 units). All 19 backend tests and Ruff checks/format passed at M6a. The local snapshot's provenance/permitted-use confirmation remains open; metadata is recorded under `data/`.
+
+M6b adds eight routing tests, for 27 passing backend tests at that stage. Hand-calculated examples verify equal complete-path splitting (including unequal downstream path counts and fractional shares), endpoint/transit restrictions, undirected loads, conservation, and unreachable reporting. The real baseline has no undeliverable demands; reversing record order produces identical results.
+
+Measured baseline top five (values rounded for presentation; capacities are 550 units):
+
+| Link | Endpoints | Load units | Utilization |
+|---|---|---:|---:|
+| L12 | Berlin–Hamburg | 390.546867 | 71.008521% |
+| L3 | Amsterdam–Hamburg | 376.225021 | 68.404549% |
+| L26 | Frankfurt–Munich | 341.693484 | 62.126088% |
+| L30 | Milan–Munich | 323.482456 | 58.814992% |
+| L13 | Berlin–Munich | 278.462531 | 50.629551% |
+
+M6c evaluates all **92 single failures** and reports **37 critical nodes and six critical links**. Under R7's “any demand undeliverable” definition, losing a node's own endpoint demands counts toward criticality; this does not mean every node is a physical articulation point. Failed-endpoint demands are reported separately from other unreachable demands, as required by R8. Only surviving nodes count when checking physical disconnection.
+
+| Failed link | Reason and measured effect |
+|---|---|
+| L12 Berlin–Hamburg | Rerouting overloads L26 Frankfurt–Munich: 705.624242 / 550 units, 128.295317%. |
+| L26 Frankfurt–Munich | Rerouting overloads L12 Berlin–Hamburg: 617.973626 / 550 units, 112.358841%. |
+| HUB-EAST–Warsaw | 20 units undeliverable. Physical connectivity remains via OPS-EAST-2, but an operations site cannot carry transit traffic. |
+| OPS-EAST-1–HUB-EAST | Disconnection and 20 units undeliverable. |
+| OPS-SOUTHEAST–Athens | Disconnection and 20 units undeliverable. |
+| OPS-WEST–Dublin | Disconnection and 20 units undeliverable. |
+
+Representative node failures: losing HUB-EAST disconnects OPS-EAST-1 and leaves 20 units undeliverable (the hub has no endpoint demand). Losing Hamburg separates 162 units of failed-endpoint demand, with no other undeliverable demand, and overloads L26 to 117.057222%.
+
+Twelve M6c tests bring the backend suite to **39 passing tests**, with Ruff lint/format passing. Independent small networks verify demand separation, disconnection without demands, legal-route loss in a connected graph, 12-unit rerouting onto 10-unit links, exactly-100% versus greater-than-100% overload, multiple criticality reasons, invalid IDs, and restoration without mutation. Real-network checks evaluate every node/link twice for reproducibility. These are local backend findings; they are not yet API/UI or published-image application proof.
+
+M3 workspace verification on 2026-10-27 demonstrated frontend edits through both an explicit build and watch mode, followed by ordinary browser refresh on port 2158 without an image push or second frontend server. Intentional syntax errors produced clear build/watch diagnostics, and the watcher recovered after correction. Repeated post-start hooks preserved the working greeting API. All nine frontend and 11 Django tests passed, including new logo-watch and build-error/recovery coverage. Temporary edits were restored. Fresh devcontainer creation and actual container restart remain unverified here because Docker is unavailable; dependencies were not reinstalled.
+
+M4/M5 evidence review on 2026-10-27: Actions run 40455416000 passed both image builds, the complete container/HTTP smoke checks, and production-image export/upload. This verifies non-root production permissions, runtime-key startup, generated frontend assets, and absence of Node/npm in the production runtime. A separate local Gunicorn browser check displayed the fetched greeting; the temporary process was stopped. This is not a production-image browser check. Publication failed at `download-artifact@v8.0.2` because its bundled ZIP extractor still emits `DEP0005`; the Node-warning guard correctly failed the action. The version pin did not fix it, and no warning bypass or custom extractor was added. All 32 CI-helper tests passed locally. Published-image Compose/browser checks remain pending on a Docker host, so M4's final browser gate and M5 are not complete.
+
+Subsequent user decision: remove the fatal third-party Node-warning guard to keep warnings visible without blocking jobs. Both workflows now use default Node warning logging; actual action failures and frontend checked-command validation remain enforced. The guard-specific test was removed. Hosted publication after this change remains unverified.
+
+User verification follow-up (2026-10-27): the user confirmed the remaining M4/M5 checks by running `docker compose up -d` from their laptop terminal and marked the published-image/browser acceptance items complete. This supersedes the earlier pending Compose/browser limitations. The selected image tag/digest was not recorded, and this does not verify a new hosted publication after the warning-policy change.
 
 | Concern | Implemented now | Why incomplete/deferred | First internal-release work |
 |---|---|---|---|
 | Authentication and access control | No authentication; local host restrictions and loopback-only demonstration. | Account-management scope deferred for the local demonstration. | Add authentication, protected endpoints, least-privilege authorization, and access-control tests before shared use. |
 | Logging | Basic server/request stdout/stderr logs; development log file. | Centralized observability deferred; basic diagnostics retained. | Define redaction, collection, retention, operational alerts, and appropriate audit events. |
-| Input validation and error handling | Required dataset validation and file-and-row errors are not implemented. | Loader unfinished; this is priority work, not an optional production enhancement. | Validate both inputs and requests explicitly; test invalid rows and baseline invariants without exposing tracebacks. |
+| Input validation and error handling | Local backbone/CSV validation, tested merged invariants, analysis query validation, and explicit JSON errors with server-side logging are implemented. | Frontend presentation of analysis errors remains pending. | Retain invalid-input/API tests and keep internal tracebacks out of client responses. |
 | API versioning | No analysis API or compatibility policy yet. | One jointly delivered frontend/backend; no independent clients. | Define the contract; establish versioning/deprecation policy before supporting independent clients. |
 | Configuration and secrets | Runtime secret key required; local allowed hosts; private configuration excluded from images. Demo key is public and not suitable for shared use. | Deployment provisioning and managed secrets deferred. | Private random keys, approved secret delivery and rotation, HTTPS, deployment-specific host/cookie settings. |
 | Dependency and security checks | Locked dependencies, lint, unit tests, container smoke tests, and HTTP checks. | Automated vulnerability and image scanning not implemented. | Add dependency/container scans, triage findings, and establish dependency/base-image update ownership. |

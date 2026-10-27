@@ -19,9 +19,6 @@ concurrency:
   group: ci-${{ github.event.pull_request.head.ref || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-env:
-  NODE_OPTIONS: --require=/tmp/linkscope-node-warnings-${{ github.run_id }}-${{ github.run_attempt }}.cjs
-
 jobs:
   test:
     # Fork PRs are skipped before a runner starts, so they use no Actions minutes.
@@ -34,18 +31,6 @@ jobs:
       tag: ${{ steps.metadata.outputs.tag }}
       publish: ${{ steps.metadata.outputs.publish }}
     steps:
-      # Bootstrap before checkout so the policy also covers checkout and post-actions.
-      - &node-warning-policy
-        name: Fail on Node runtime warnings
-        shell: bash
-        run: |
-          cat > "${NODE_OPTIONS#--require=}" <<'JS'
-          // Third-party actions must not succeed after emitting Node warnings.
-          process.on('warning', (warning) => {
-            throw warning;
-          });
-          JS
-
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
@@ -141,7 +126,6 @@ jobs:
       contents: read
       packages: write
     steps:
-      - *node-warning-policy
       - uses: actions/download-artifact@v8.0.2
         with:
           name: production-image
@@ -176,7 +160,6 @@ jobs:
       group: ghcr-untagged-cleanup
       cancel-in-progress: false
     steps:
-      - *node-warning-policy
       - uses: actions/checkout@v7
         with:
           persist-credentials: false

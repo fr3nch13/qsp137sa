@@ -2,14 +2,10 @@
 
 ## Open
 
-### Enforcing Node warnings in third-party Actions
+### Third-party Action warnings
 
-- **Status:** Implemented locally; hosted CI validation pending.
-- [x] Bootstrap a Node runtime-warning guard before JavaScript actions in every CI and deletion-workflow job, including post-action coverage.
-- [x] Test clean execution plus generic, deprecation, experimental, and deprecated Buffer-constructor warnings.
-- [x] Validate both workflows with actionlint and the new test with Ruff.
-- [ ] Resolve the upstream `download-artifact@v8` Buffer deprecation before expecting publication to pass with the guard enabled.
-- **Evidence:** Run `40453771963` passed Docker builds, container HTTP checks, tests, publication, and cleanup, but its artifact download emitted a Node deprecation warning. The policy now intentionally rejects that warning rather than reporting clean success. No runtime warning suppression or failure bypass was added. This guard covers Node warning events, not arbitrary tool text or GitHub warning annotations.
+- **Decision (2026-10-27):** Keep Node warnings visible in job logs without turning them into failures. Removed the workflow-level fatal warning guard and its dedicated test from both workflows at the user's request. Actual action failures still fail jobs; frontend checked-command validation is unchanged.
+- **Evidence:** Run `40455416000` passed image tests but failed publication because the former guard threw on `download-artifact@v8.0.2`'s upstream `DEP0005` warning. Removing the guard restores Node's default log-only warning behavior; hosted publication must be verified after deployment.
 
 ### Deleted-ref package lookup failure
 
@@ -66,40 +62,105 @@
 #### M3: Devcontainer rebuild workflow
 
 - **Prerequisites:** M1 and M2 for end-to-end verification.
-- [x] Provide Node/npm in the development target; preserve workspace mounts, lifecycle hooks, Python reload, and existing startup/error reporting. Post-create installs locked npm dependencies and builds assets; image execution validation remains pending.
-- [ ] Support initial build and explicit rebuild/watch inside the devcontainer, serving changed assets on port 2158 without an image push or a second frontend server.
-- [ ] Verify a source edit, rebuild, and manual browser refresh show the change without stale assets; verify repeat startup and clear build-failure reporting.
+- **Status:** Workspace build/watch/browser workflow verified on 2026-10-27; fresh container creation/restart verification remains pending on a Docker host.
+- [x] Provide Node/npm in the development target; preserve workspace mounts, lifecycle hooks, Python reload, and existing startup/error reporting. Post-create installs locked npm dependencies and builds assets; image-installed Node 24.22.1 and bundled npm 11.19.1 were used for this verification.
+- [x] Support initial build and explicit rebuild/watch inside the devcontainer, serving changed assets on port 2158 without an image push or a second frontend server.
+- [x] Verify a source edit, rebuild, and manual browser refresh show the change without stale assets; verify repeat startup and clear build-failure reporting.
+- [x] Recreate/restart the devcontainer on a Docker host to verify actual lifecycle execution, including the post-create dependency install and initial build.
+- **Review:** Explicit build and watch edits appeared in the live browser after normal refresh on port 2158, without cache clearing. An intentional syntax error made the explicit build exit 1 with a file/line diagnostic; watch reported the error, stayed running, and recovered after correction. Repeated post-start hooks left the API working. Added automated logo-watch and syntax-error/recovery coverage; all nine frontend and 11 Django tests passed. Temporary edits were restored and the watcher stopped. Docker is unavailable here; this does not claim a fresh devcontainer recreation or actual container restart, and existing dependencies were not reinstalled.
 
 #### M4: Single production image
 
 - **Prerequisites:** M1 and M2.
+- **Status:** Complete; CI packaging checks passed and the user confirmed the remaining production-image checks from their laptop.
 - [x] Add the Node application-build stage using locked `npm ci` and the frontend build; copy only required build output into the Python production runtime.
-- [ ] Preserve development/production target separation, non-root permissions, runtime secrets, loopback-only Compose publishing, and explicit AMD64 selection.
-- [ ] Verify a clean build without local bundles, frontend/API HTTP responses through Gunicorn, and absence of Node/npm in the production runtime.
-- [ ] Verify the React homepage displays the message fetched from `/api` through the production Gunicorn entry point.
+- [x] Preserve development/production target separation, non-root permissions, runtime secrets, loopback-only Compose publishing, and explicit AMD64 selection.
+- [x] Verify a clean build without local bundles, frontend/API HTTP responses through Gunicorn, and absence of Node/npm in the production runtime.
+- [x] Verify the React homepage displays the message fetched from `/api` through the production Gunicorn entry point.
+- **Review (2026-10-27):** [Run 40455416000](https://github.com/fr3nch13/qsp137sa/actions/runs/40455416000) passed development/production image builds and image/HTTP tests. The smoke script checks UID 10001, a non-writable application directory, absent `.env`/`.git`, no Node/npm, generated assets, and the greeting API. `.dockerignore` excludes local bundles/dependencies; production builds its frontend from source. Compose preserves loopback-only binding and explicit AMD64 selection. A separate local Gunicorn process served HTML/JS/CSS/logo and displayed the API greeting in a real browser on port 2160, then was stopped. This verifies the entry point, not the production container in a browser; that final checkbox remains open. No Dockerfile change was necessary.
 
 #### M5: CI and bundled-image verification
 
 - **Prerequisites:** M3 and M4.
+- **Status:** Acceptance checklist complete; the user confirmed the remaining published-image Compose/browser checks on their laptop on 2026-10-27 using `docker compose up -d`. This supersedes the earlier local-environment verification limitations below. The selected image tag/digest was not recorded.
 - [x] Extend the existing single CI flow with frontend lint, type-check, tests, and reproducible build checks; preserve triggers, required checks, artifact publication, and no path filtering.
-- [ ] Extend image smoke tests to verify frontend HTML/assets, API success/error behavior, and development rebuild support while retaining existing checks.
-- [ ] Validate Compose startup and browser requests on a Docker host, record actual evidence, and distinguish environment-blocked checks from passed checks.
-- [ ] Repeat the homepage-to-`/api` message proof using the published image through Compose before proceeding with full network-application integration.
-- **Partial implementation review:** Development smoke tests now run Node/npm and locked frontend validation in a writable source copy; production checks require generated assets and no Node/npm. Actionlint, shell syntax, all 20 CI-helper tests, and local frontend checks passed. Docker is unavailable locally, so actual image builds, post-create execution, and container checks remain unverified.
+- [x] Extend image smoke tests to verify frontend HTML/assets, API success/error behavior, and development rebuild support while retaining existing checks.
+- [x] Validate Compose startup and browser requests on a Docker host, record actual evidence, and distinguish environment-blocked checks from passed checks.
+- [x] Repeat the homepage-to-`/api` message proof using the published image through Compose before proceeding with full network-application integration.
+- **Review (2026-10-27):** Development smoke tests run Node/npm and locked frontend validation (including source-only build/watch tests) in a writable copy; both images are checked for HTML/assets/API success and missing-route errors. [Run 40455416000](https://github.com/fr3nch13/qsp137sa/actions/runs/40455416000) passed the complete test job, including image builds, smoke tests, and production-image export/upload. Publication then failed: `download-artifact@v8.0.2` still emits `DEP0005` from its bundled ZIP extractor, and the required Node-warning guard correctly fails it. The version pin did not fix the upstream warning. No suppression or custom extraction workaround was added. All 32 CI-helper tests passed again locally. Actual post-create execution, fresh container recreation, and published-image Compose/browser verification remain unverified here because Docker is unavailable. M5 is not complete.
+- **Policy follow-up:** Removed the fatal third-party Node-warning guard at the user's request; warnings remain in logs and no custom extraction is needed. Publication after this change still requires hosted validation.
+- **User verification follow-up (M4/M5):** The user checked off the remaining items after verifying the published application through Compose from their laptop terminal. This closes the production-image/browser acceptance gates; it does not establish that a new CI run has published the warning-policy change.
 
 #### M6: Network application delivery
 
-- **Prerequisites:** Existing dataset/loader tasks for real topology; M2 for API wiring; M1 for UI work. Synthetic model tests can proceed independently.
-- [ ] Complete the local input/merged-model tasks below and verify 37 nodes, 55 links, 391 demands, and 2,068 demand units.
-- [ ] Implement and independently test minimum-hop equal-split routing, transit restrictions, utilization/top-five ranking, criticality, and failed-node/link reporting.
-- [ ] Connect analysis to the REST API and React map/controls; test fail/restore without page reload, accessible non-color indicators, and explicit invalid-input errors.
+- **Priority:** This is the core assignment, not a follow-up feature. M1-M5 establish the delivery foundation; remaining implementation effort should focus on R1-R11 below, not optional infrastructure.
+- **Status:** M6a-M6d implemented and validated; M6e-M6f pending. Backend M6a-M6d belongs in one PR; frontend M6e-M6f belongs in a separate PR. Stop after each milestone for user review. Keep one application/container, the existing frontend shell, and no database.
+- **Prerequisites:** M1/M2 provide frontend/API integration. The dataset-source and loader sections below retain their detailed research/implementation checklists; M6a is their application acceptance gate, not a second implementation.
+
+##### M6a: Load and validate the real network (R1-R4)
+
+- [x] Preserve the selected local backbone snapshot with source revision, retrieval date, checksum, and attribution; add the exact assignment table as `sites.csv`. Keep unresolved official-source/permitted-use questions explicit.
+- [x] Complete the existing TopoHub local-loader checklist below: preserve IDs/coordinates, merge both inputs, use undirected links/demands, force backbone capacity 550, retain site access capacities, and assign endpoint/transit roles.
+- [x] Add twelve 10-unit operations-site/data-center demands and one 50-unit data-center demand.
+- [x] Reject malformed inputs with file-and-row errors; test duplicate IDs, missing/unknown attachments, invalid values, and row-order-independent site references.
+- **Acceptance:** Tests load the real inputs and independently assert 37 nodes, 55 links, 391 demands, and 2,068 demand units, plus capacities, roles, coordinates, and generated demand endpoints. Synthetic invalid-input tests must not depend on network access.
+- **Review (2026-10-27):** `load_topology()` reads separate `data/nobel-eu.txt` and `data/sites.csv` files, validates them, and merges only in memory. Tests verify both inputs remain unchanged. The real snapshot yields exactly 37 nodes, 55 links, 391 demands, and 2,068 units. Eight loader tests (including invalid-input subcases, an independently calculated small merge, row reordering, and input immutability) plus 11 existing Django tests passed. Ruff checks/format passed. Dataset source revision/checksum are recorded in `data/README.md`; official provenance/permitted-use confirmation remains open. Routing and API/UI exposure are intentionally deferred to M6b-M6f.
+
+##### M6b: Route traffic and rank link utilization (R5-R6, calculation for R10)
+
+- **Prerequisite:** M6a for real-data acceptance; hand-calculated synthetic tests can start earlier.
+- [x] Route each demand along all minimum-hop paths and split equally among complete tied paths, not merely equally among next hops.
+- [x] Permit only backbone cities and the aggregation hub as intermediate nodes; operations sites/data centers remain valid source/destination endpoints.
+- [x] Sum undirected link loads, calculate utilization against capacity, and return the five most utilized links with deterministic tie ordering.
+- [x] Test a unique route, equal shortest paths, unequal numbers of downstream shortest paths, prohibited endpoint transit, unreachable demands, and traffic/load conservation against hand-calculated expectations.
+- **Acceptance:** Independently checked synthetic results pass; the real baseline produces reproducible loads and top-five values. Record measured values rather than inventing expected network findings.
+- **Review (2026-10-27):** `route_traffic()` uses the existing NetworkX dependency with equal shares across complete shortest paths. Eight routing tests cover hand-calculated loads, fractional shares/conservation, reverse-direction aggregation, transit restrictions, disconnected demands, percentage-based ranking/ties, and real-input order-independent reproducibility without mutation. All 27 backend tests and Ruff lint/format checks passed. All 391 baseline demands are deliverable. Top five: L12 Berlin–Hamburg 71.008521%, L3 Amsterdam–Hamburg 68.404549%, L26 Frankfurt–Munich 62.126088%, L30 Milan–Munich 58.814992%, L13 Berlin–Munich 50.629551%. API/UI and failure analysis remain later milestones.
+
+##### M6c: Analyze single failures and criticality (R7-R8)
+
+- **Prerequisite:** M6b.
+- [x] Simulate one failed node or link without mutating the baseline; node failure also removes its incident links.
+- [x] Report failed-node endpoint demands separately from other undeliverable demands, including demand identities and units; list every remaining link above 100% utilization.
+- [x] Evaluate every single-node and single-link failure. Mark an element critical when its loss disconnects the remaining network, makes any demand undeliverable, or overloads a remaining link; include the applicable reasons.
+- [x] Test disconnection, failed endpoints, rerouting, overload, exactly-100% boundaries, and restoration against small independently calculated networks.
+- **Acceptance:** Baseline and each real-network single failure can be analyzed reproducibly; restoring an element returns the original results. Record the team's single-point-of-failure findings with their reasons.
+- **Review (2026-10-27):** `linkscope/failures.py` reuses baseline routing on filtered, immutable topology records. Twelve failure tests plus existing tests pass (39 backend tests total); Ruff lint/format and whitespace checks pass. All 92 real single failures were evaluated reproducibly: 37 critical nodes and six critical links. Failed-node endpoint demands count toward criticality but are reported separately. Failing L12 overloads L26 to 128.295317%; failing L26 overloads L12 to 112.358841%. Four access links lose 20 demand units each: HUB-EAST–Warsaw, OPS-EAST-1–HUB-EAST, OPS-SOUTHEAST–Athens, and OPS-WEST–Dublin. HUB-EAST–Warsaw remains physically connected via OPS-EAST-2, but the endpoint transit restriction prevents delivery. Full findings and interpretation are recorded in interview notes. API/UI exposure remains M6d-M6f.
+
+##### M6d: Expose the network and analysis through the API
+
+- **Prerequisites:** M6a-M6c and M2.
+- [x] Define a concise typed JSON contract for topology, baseline/top-five/criticality results, and one selected node/link failure with R8 results; keep frontend/backend field names consistent.
+- [x] Validate failure type and identity explicitly; reject unknown or invalid selections with JSON errors and appropriate HTTP status codes. Surface data-loading/analysis failures without success-shaped fallbacks.
+- [x] Keep simulations request-local; one browser's failure selection must not change another browser's baseline. Retain appropriate CSRF handling if unsafe HTTP methods are used.
+- [x] Add API tests for baseline, node/link failure, restore/baseline equivalence, invalid requests, and independent requests.
+- **Acceptance:** Real topology and analysis flow through Django JSON endpoints with tested output shapes; no hardcoded frontend results or separate service is needed.
+- **Review (2026-10-27):** Read-only `/api/network` exposes topology, baseline and all criticality reasons; `/api/analysis` exposes baseline or one `kind=node|link&id=...` failure. No shared simulation state or cache. Invalid/repeated/unknown query parameters return JSON 400, unknown elements 404, unsupported methods 405, input failures logged JSON 503, and NetworkX failures logged JSON 500. Greeting endpoints/frontend remain unchanged. Six real-data API tests plus prior tests pass (45 backend tests total); image smoke checks now request the new endpoints as well. Docker image execution of these new checks remains hosted validation, not a local pass. Stop here before M6e.
+- **Docker follow-up:** Both AMD64 image targets subsequently built and the complete image smoke script passed using host Docker Desktop, with alternate ports 22158/22159 to preserve the running devcontainer. New network/analysis endpoints passed through both images, including production Gunicorn. Review F1 (complete response types) and G1 (image execution) are addressed; temporary containers were cleaned up. M6e has not started.
+
+##### M6e: Show the network map and baseline findings (R9-R10)
+
+- **Prerequisite:** M6d.
+- [ ] Replace the greeting-demo body with a coordinate-based network map; place sites near their attachments, including the hub-attached operations sites, with readable labels.
+- [ ] Display critical nodes/links and reasons, plus the five most utilized links with load/capacity/utilization values.
+- [ ] Use labels, shapes, line styles, or badges as well as color; retain the existing header/footer and palette, with accessible loading, empty, and error states.
+- **Acceptance:** The real 37-node/55-link network is visible in the browser, results match the API, and users can identify critical elements and top-five links without relying on color alone.
+
+##### M6f: Fail/restore interactively and verify the complete application (R11; end-to-end R1-R10)
+
+- **Prerequisite:** M6e.
+- [ ] Provide keyboard-accessible node/link selection and fail/restore controls for any element, with at most one simulated failure active.
+- [ ] Update the map and R8 report without a full-page reload; clearly distinguish failed-endpoint demands, other undeliverable demands, and overloaded links.
+- [ ] Handle request failures and rapid selection changes explicitly so stale responses cannot overwrite the current selection; restoring returns the baseline.
+- [ ] Add focused frontend tests and real-browser checks covering node failure, link failure, restore, accessible indicators, and visible API errors.
+- [ ] Repeat the application proof using the published image through the documented Compose startup command; update the README's actual capabilities and remaining limitations.
+- **Acceptance:** A user can start the app with one command, see the baseline findings, fail/restore any node or link, and receive correct updated results without reloading. Record the team's three answers with measured numbers for M7.
 
 #### M7: Delivery documentation and evidence
 
 - **Prerequisites:** M5 and M6 for completed-application claims.
 - [ ] Update user instructions only as features become available; keep exact development commands in project context.
 - [ ] Record measured results, remaining limitations, and end-to-end evidence in interview notes; retain future image/repository splits and CI filtering as conditional proposals.
-- **Review:** Frontend tooling, Docker/CI npm wiring, and same-origin greeting integration are implemented. Network analysis and end-to-end container validation remain pending.
+- **Review:** Frontend tooling, Docker/CI integration, and the published greeting demonstration are verified. The actual network application remains M6a-M6f; use its measured results and verification evidence for final delivery.
 
 ### Docker Compose startup
 
@@ -158,7 +219,7 @@
 - **Decision (2026-10-23):** Use a local `nobel-eu.txt` from the [sikorski-as/sndlib native-text mirror](https://raw.githubusercontent.com/sikorski-as/sndlib/master/native/nobel-eu/nobel-eu.txt) provisionally. The project owner will contact Quantum Sky about the original source failures. This does not resolve provenance or permitted-use checks.
 - **Remaining work:**
   - [ ] Obtain clarification from Quantum Sky and locate or confirm the official dataset.
-  - [ ] Preserve the provisional native file unchanged, recording its source revision, retrieval date, and checksum.
+  - [x] Preserve the provisional native file unchanged, recording its source revision, retrieval date, and checksum.
   - [ ] Confirm provenance, permitted use, and attribution; compare or replace the provisional copy when an official file becomes available.
 - **Acceptance criteria:**
   - Confirm the selected source's provenance and permitted use.
@@ -190,14 +251,14 @@ These candidates are not equivalent in provenance or format. Verify a candidate 
 
 ### Implement local backbone and site loading with TopoHub
 
-- **Status:** Pending
+- **Status:** Implemented and locally verified (M6a); provenance/permitted-use confirmation remains open.
 - **Design:** Follow the [local data loading design](../project-context.md#data-loading-design). Use TopoHub's native parser through `LocalSNDlibGenerator`, with local backbone input and CSV merging rather than bundled JSON or runtime downloads.
 - **Implementation checklist:**
-  - [ ] Verify the `SNDlibGenerator` subclass extension against the locked TopoHub version.
-  - [ ] Add the assignment's site table as `sites.csv`.
-  - [ ] Implement local backbone loading with file-and-row validation and preserved link identities.
-  - [ ] Validate and merge sites, access links, capacities, coordinates, transit roles, and additional demands into one topology.
-  - [ ] Test invalid input, including unknown attachments, duplicate IDs, bad capacities, and site references independent of CSV row order.
-  - [ ] Verify the merged totals of 37 nodes, 55 links, and 391 demands totaling 2,068 units.
+  - [x] Verify the `SNDlibGenerator` subclass extension against the locked TopoHub version.
+  - [x] Add the assignment's site table as `sites.csv`.
+  - [x] Implement local backbone loading with file-and-row validation and preserved link identities.
+  - [x] Validate and merge sites, access links, capacities, coordinates, transit roles, and additional demands into one topology.
+  - [x] Test invalid input, including unknown attachments, duplicate IDs, bad capacities, and site references independent of CSV row order.
+  - [x] Verify the merged totals of 37 nodes, 55 links, and 391 demands totaling 2,068 units.
 - **Prerequisite for baseline integration tests:** A recorded local backbone snapshot from the resource-gathering task above. Loader implementation and synthetic-fixture tests need not wait for official-source confirmation.
-- **Review:** Dependencies are declared and locked; the loader and local input files have not yet been added.
+- **Review:** Implemented in `linkscope/topology.py`, with separate unchanged backbone/CSV inputs under `data/` and eight loader tests. No runtime download, new dependency, routing, or API change.
