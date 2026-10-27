@@ -69,6 +69,19 @@ The merged baseline is expected to contain **37 nodes, 55 links, and 391 demands
 - Do not communicate criticality or utilization using color alone; provide another visual cue or textual indicator.
 - Support interactive failure and restoration of nodes and links, with results shown in the current page.
 
+### Visual palette
+
+Retain the initial frontend/favicon palette for visual consistency:
+
+| Color | Hex | Role |
+|---|---|---|
+| Dark slate | `#17212b` | Primary text on light backgrounds; favicon background. |
+| Off-white | `#f5f7fa` | Page background; favicon network nodes. |
+| Light blue | `#7dd3fc` | Network/accent strokes on dark backgrounds; favicon links. |
+| Muted white | `#cbd5e1` | Footer text on the same dark slate background as the header. |
+
+The palette is defined by the current [frontend stylesheet](../frontend/src/styles.css) and shared [logo](../frontend/src/logo.svg). The same SVG is used for the header logo and browser favicon; `/favicon.ico` redirects to `/assets/logo.svg`. The responsive shell has a dark branded header, open main workspace, and footer with local-demo context. Keep the API greeting visible until its integration-proof role is replaced by application functionality. Light blue is an accent, not body text on the off-white background; verify contrast for any new foreground/background pairing. Future criticality, utilization, and error colors must remain distinguishable and accessible, with labels or shapes as well as color. Semantic status colors have not yet been selected.
+
 ## Data Loading Design
 
 Decision recorded on 2026-10-23; implementation is pending.
@@ -94,7 +107,7 @@ Keep this adapter separate from routing and failure analysis. Recompute utilizat
 
 ## Backend Framework Decision
 
-Decision recorded on 2026-10-23; the Django scaffold and a status page are implemented. Network analysis and the Web UI remain pending.
+Decision recorded on 2026-10-23; Django now serves a React/API greeting demonstration. Network analysis and the map remain pending.
 
 Use native Django for the Python backend and serve the application's JSON endpoints through Django views. Its built-in authentication, sessions, ORM, migrations, and administrative interface remain available for future needs, but are not required features of the initial version. FastAPI is not part of the selected stack, and no additional API framework (such as Django REST Framework or Django Ninja) has been selected.
 
@@ -145,14 +158,14 @@ Decision recorded on 2026-10-23; the Dockerfile and devcontainer foundations pac
 - Development adds Git, GitHub CLI (`gh`), curl, and CA certificates through Debian packages and stays running for workspace attachment. Both targets define the common `app` user (UID/GID 10001); the devcontainer may align that user's UID/GID with the host for writable workspace mounts. Development owns `/app`; production restores root ownership of its application directory and files so the runtime user cannot modify them. Production does not inherit development tools. The image smoke test checks `gh --version` in the development target. GitHub CLI authentication is separate from VS Code sign-in; use `gh auth login` interactively when required, and never bake credentials into the image.
 - The `app` user's home is `/home/app`, created and owned by that user, while the working directory and bind-mounted workspace remain `/app`. The devcontainer mounts a named volume (`linkscope-home-${devcontainerId}`) at `/home/app` so home-relative IDE files and tool caches persist across normal rebuilds. The host-mounted workspace also survives rebuilds; removing the named volume deletes its home data.
 - The legacy `.cache`, `.copilot`, `.vscode-server`, `.dotnet`, and `.gitconfig` entries were migrated to the home volume and removed from `/app` after content verification. Sixteen differing or missing originals (runtime state and old session locks) are preserved under `/home/app/.workspace-home-backup` without replacing current home state. The one-time migration hook and obsolete workspace ignore entries have been removed. Project files, `.env`, and `.venv` remain in `/app`.
-- Django 6.1.2 and TopoHub 1.5.1 are direct dependencies. TopoHub 1.5.1 does not declare NetworkX, which its SNDlib provider imports, so NetworkX 3.7 is also pinned directly. Gunicorn 26.2.0 serves `linkscope.wsgi:application` on `0.0.0.0:2158` in the production image, logging requests to stdout. Its unused control socket is disabled so it does not write under the root-owned application directory. The root page reports scaffold status only; network analysis and the frontend remain pending.
+- Django 6.1.2 and TopoHub 1.5.1 are direct dependencies. TopoHub 1.5.1 does not declare NetworkX, which its SNDlib provider imports, so NetworkX 3.7 is also pinned directly. Gunicorn 26.2.0 serves `linkscope.wsgi:application` on `0.0.0.0:2158` in the production image, logging requests to stdout. Its unused control socket is disabled so it does not write under the root-owned application directory. WhiteNoise 6.12.0 serves bundled frontend assets; the homepage fetches a greeting from the JSON API. Network analysis remains pending.
 - `.dockerignore` excludes local environments, secrets, Git metadata, and assignment/agent documentation from the build context.
 - The shared Docker stage overrides the base image's OCI title, description, URL, documentation, and source with LinkScope metadata. Image smoke tests verify the title and description on both targets; publishing a new image supplies the corrected description to GHCR.
 - Compose is the local published-image run path. Production orchestration is not selected; container packaging does not itself select Kubernetes or a cloud platform.
 
 ### Bundled frontend and API decision
 
-Approved on 2026-10-27; the frontend source/build foundation (M1) and npm Docker/CI wiring are implemented, while Django serving and end-to-end container verification remain pending. See the [implementation milestones](tasks/todo.md#bundled-frontend-and-api-milestones).
+Approved on 2026-10-27; M1 build tooling and M2 same-origin serving/browser proof are implemented. End-to-end Docker/Compose verification remains pending. See the [implementation milestones](tasks/todo.md#bundled-frontend-and-api-milestones).
 
 - Keep one repository, one Dockerfile, and one deployed application container. React/TypeScript runs in the browser; its compiled HTML, JavaScript, CSS, and other assets are static files shipped with the Python application.
 - Retain Gunicorn in production with Django routing and an appropriate static-file mechanism; Gunicorn alone does not serve static files. No Apache, nginx, reverse proxy, CORS configuration, or separate frontend deployment is needed.
@@ -181,13 +194,23 @@ npm run build
 
 Output is `frontend/dist/index.html`, `frontend/dist/assets/app.js`, and `frontend/dist/assets/app.css`. The HTML references `/assets/` URLs for later same-origin Django serving. Generated output, `node_modules`, and the reserved root `staticfiles/` collection directory are ignored by Git and excluded from Docker's source context. Production must regenerate frontend output in its build stage rather than copying local output.
 
-For iterative builds, run `npm run watch` from `frontend/`. It builds immediately and watches imported TSX/CSS plus the HTML entry, writing development bundles and printing build errors. It starts no HTTP server and does not type-check continuously; run `npm run typecheck` separately. After M2 wires Django serving and M3 integrates devcontainer startup, manually refresh `http://127.0.0.1:2158/` after a successful rebuild. At M1, the existing Django status page is unchanged and does not serve these assets.
+For iterative builds, run `npm run watch` from `frontend/`. It builds immediately and watches imported TSX/CSS plus the HTML entry, writing development bundles and printing build errors. It starts no HTTP server and does not type-check continuously; run `npm run typecheck` separately. Django now serves these assets: manually refresh `http://127.0.0.1:2158/` after a successful rebuild. Node/npm installation and an initial build are already in post-create; full rebuild/lifecycle verification remains tracked in M3.
 
 Validate from `frontend/` with `npm run lint`, `npm run typecheck`, `npm test`, and `npm run build`. `npm run format` applies Biome formatting and safe fixes. Tests cover server-rendered shell semantics, isolated source-only build output, and watch rebuilds after component/CSS/HTML edits. They do not prove browser mounting, API integration, or Django static-file serving.
 
 The Dockerfile now uses `node:24-bookworm-slim` as its Node toolchain source. Development copies Node/npm from that stage; `post_create.sh` runs `npm --prefix frontend ci` and `npm --prefix frontend run build` after Python setup. The separate `application-build` stage runs locked `npm ci` and builds from source; production copies its `dist` output without Node/npm. Rebuild the devcontainer to obtain image-provided tools. The working container also has a separately provisioned Node 24 installation for local validation.
 
-CI uses `actions/setup-node@v7` with Node 24 and lockfile-based npm caching, then runs `npm ci`, lint, type checks, tests, and build before image builds. Development smoke tests repeat these commands in a writable temporary copy because the workspace mount is read-only. Production smoke tests require the built HTML/JS/CSS and absence of Node/npm. These checks are wired but Docker execution must still be verified on Actions/a Docker host. Generated assets are packaged but not yet served by Django (M2).
+CI uses `actions/setup-node@v7` with Node 24 and lockfile-based npm caching, then runs `npm ci`, lint, type checks, tests, and build before image builds. Development smoke tests repeat these commands in a writable temporary copy because the workspace mount is read-only. Production smoke tests require the built HTML/JS/CSS and absence of Node/npm. Both targets now have HTTP checks for frontend HTML, assets, greeting JSON, and missing API/asset 404s. The updated image checks still require execution on Actions/a Docker host.
+
+### Same-origin frontend/API serving
+
+Django serves `frontend/dist/index.html` at `/` through a `FileResponse`. A missing HTML build is logged and returns HTTP 503; run `npm --prefix frontend run build` to generate it. WhiteNoise middleware serves `frontend/dist/assets/` at `/assets/` with debug disabled, including under Gunicorn. No general SPA fallback is currently needed: unknown page/asset paths return 404, and `/api/unknown` returns a JSON 404 rather than frontend HTML.
+
+`GET /api` (also `/api/`) returns HTTP 200, `Content-Type: application/json`, and `{"message": "Hello, world!"}`; HEAD is supported and other methods return JSON 405 with `Allow: GET, HEAD`. Only this strictly read-only endpoint is CSRF-exempt so method rejection is consistent without a token; do not extend the exemption to state-changing functionality. CSRF middleware remains enabled for other views. Tests enforce CSRF checks explicitly. The React component fetches relative `/api`, validates the JSON message, and displays loading, success, or an accessible error. Unmounting aborts the request; failed requests do not show fallback success content.
+
+HTML/API responses use `never_cache`. Unhashed JS/CSS use WhiteNoise `max-age=0` (revalidation), with file auto-refresh enabled in both environments for this local-only demo. This deliberately avoids long-lived production caching of fixed asset names and lets workspace builds appear without server restarts. Immutable hashed assets/optimized production caching are not implemented. Unit tests use isolated built-asset fixtures; frontend build tests separately verify actual output.
+
+M2 verification on 2026-10-27: 11 Django tests, eight frontend tests, 31 CI-helper tests, lint/type checks, and builds passed. A real browser displayed the message from same-origin `/api`, showed errors for HTTP 503, invalid JSON contract, and network failure, and recovered after restoring the route. Desktop/mobile layout checks found no horizontal overflow; the shared logo loaded successfully. The footer reads "Quantum Sky · Project 137 · LinkScope" and "Local demonstration", using dark slate with muted white text. Gunicorn was separately started on loopback port 2160 and served HTML/JS/CSS/JSON successfully, then stopped. Review F1's CSRF/method-contract mismatch was addressed and regression-tested. This is not a Docker/Compose production-image verification.
 
 ### Django startup
 
@@ -202,7 +225,7 @@ export DJANGO_SECRET_KEY="$(uv run python -c 'import secrets; print(secrets.toke
 uv run python manage.py runserver 0.0.0.0:2158
 ```
 
-The devcontainer forwards port 2158 and keeps its existing keep-alive command. Its `post_start.sh` hook starts the auto-reloading Django development server in the background, using a lifetime `flock` lock to prevent duplicate starts. Combined server stdout/stderr is appended to `/home/app/.cache/linkscope/runserver.log` and mirrored through `/proc/1/fd/1` to the container's stdout using `tee`, making it available to `docker logs` and configured container log collectors. This requires the main process's stdout to be writable by `app`; the hook fails explicitly otherwise. The hook checks HTTP readiness for up to 30 seconds and reports startup failures; repeat calls leave an existing server running. Debug responses remain disabled. Only `localhost`, `127.0.0.1`, and `[::1]` are allowed hosts. Authentication, administration, database configuration, and static assets are deliberately not enabled yet.
+The devcontainer forwards port 2158 and keeps its existing keep-alive command. Its `post_start.sh` hook starts the auto-reloading Django development server in the background, using a lifetime `flock` lock to prevent duplicate starts. Combined server stdout/stderr is appended to `/home/app/.cache/linkscope/runserver.log` and mirrored through `/proc/1/fd/1` to the container's stdout using `tee`, making it available to `docker logs` and configured container log collectors. This requires the main process's stdout to be writable by `app`; the hook fails explicitly otherwise. The hook checks HTTP readiness for up to 30 seconds and reports startup failures; repeat calls leave an existing server running. Debug responses remain disabled. Only `localhost`, `127.0.0.1`, and `[::1]` are allowed hosts. Authentication, administration, and database configuration are deliberately not enabled yet.
 
 For the production image, with `DJANGO_SECRET_KEY` exported in the host shell:
 
@@ -211,9 +234,9 @@ docker build --target production -t linkscope:production .
 docker run --rm -p 127.0.0.1:2158:2158 -e DJANGO_SECRET_KEY linkscope:production
 ```
 
-Visit `http://localhost:2158/` for the status page. The key is runtime configuration, not an image-build input; do not commit it. Although Gunicorn is a production server, this unauthenticated scaffold remains a local-only demonstration, not a production-ready release.
+Visit `http://localhost:2158/` for the React/API greeting demonstration. The key is runtime configuration, not an image-build input; do not commit it. Although Gunicorn is a production server, this unauthenticated scaffold remains a local-only demonstration, not a production-ready release.
 
-With the key exported, validate with `uv lock --check`, `uv run python manage.py check`, and `uv run python manage.py test linkscope`. To smoke-test the production entry point without Docker, run `uv run gunicorn --bind 0.0.0.0:2158 --access-logfile - --no-control-socket linkscope.wsgi:application` and request the status page.
+With the key exported, validate with `uv lock --check`, `uv run python manage.py check`, and `uv run python manage.py test linkscope`. To smoke-test the production entry point without Docker, build the frontend, run `uv run gunicorn --bind 0.0.0.0:2158 --access-logfile - --no-control-socket linkscope.wsgi:application`, and request `/`, `/assets/app.js`, and `/api`.
 
 ### Container foundation validation
 

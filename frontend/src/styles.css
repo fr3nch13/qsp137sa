@@ -1,16 +1,97 @@
-/* Base styling for the LinkScope frontend shell. */
+/* Responsive application shell using the shared LinkScope palette. */
 :root {
+  --slate: #17212b;
+  --surface: #f5f7fa;
+  --accent: #7dd3fc;
+  --muted-white: #cbd5e1;
   font-family: system-ui, sans-serif;
-  color: #17212b;
-  background: #f5f7fa;
+  color: var(--slate);
+  background: var(--surface);
+  line-height: 1.6;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
 }
 
+.app-shell {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.layout-width {
+  width: min(100%, 80rem);
+  margin-inline: auto;
+  padding-inline: clamp(1rem, 4vw, 3rem);
+}
+
+.site-header {
+  background: var(--slate);
+  color: var(--surface);
+  border-bottom: 3px solid var(--accent);
+  padding-block: 1.25rem;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.brand img {
+  flex-shrink: 0;
+}
+
+.brand h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  line-height: 1.2;
+}
+
+.brand p {
+  margin: 0.25rem 0 0;
+  font-size: 0.875rem;
+}
+
 main {
-  max-width: 64rem;
-  margin: 3rem auto;
-  padding: 0 1.5rem;
+  flex: 1;
+  padding-block: clamp(2rem, 5vw, 4rem);
+}
+
+.welcome h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.welcome p {
+  margin: 0.75rem 0 0;
+}
+
+.api-status {
+  margin-top: 2rem;
+  border-left: 3px solid var(--slate);
+  padding-left: 1rem;
+}
+
+.site-footer {
+  background: var(--slate);
+  color: var(--muted-white);
+  padding-block: 1rem;
+  font-size: 0.8125rem;
+}
+
+.site-footer .layout-width {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem 2rem;
+}
+
+.site-footer p {
+  margin: 0;
 }
