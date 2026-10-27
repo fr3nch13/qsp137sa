@@ -36,6 +36,17 @@ Audience: an operations lead and engineers. Explain operational results first, t
 
 ## Implementation status and production concerns
 
+### R2: File-and-row diagnostics and logging
+
+Requirement: **"The application shall reject bad input with an error that names the file and the row."**
+
+- **Implemented:** The local input loader rejects invalid backbone/CSV data with `InputError`, formatted as `<file path>: row <physical row>: <reason>`. The API logs the exception with its traceback and returns the diagnostic in a JSON HTTP 503 response.
+- **Log locations:** Devcontainer startup appends combined server output to `$HOME/.cache/linkscope/runserver.log` and container output. Production sends errors to container stderr, available through `docker compose logs`; there is no dedicated persistent production application log file or application-managed retention.
+- **Verification (2026-10-27):** All eight topology tests passed using `.venv/bin/python manage.py test linkscope.test_topology --verbosity 1`, including invalid backbone/CSV cases asserting the filename and exact physical row.
+- **Open requirement gap:** The frontend currently replaces non-success API responses with a generic HTTP-status error, hiding the returned file-and-row diagnostic. Backend/API/logging support is implemented, but browser-visible R2 diagnostics remain incomplete. Track this as assignment completeness, not merely production hardening.
+
+### Application delivery status
+
 Current functionality includes a Leaflet network map with utilization and criticality findings fetched from Django, interactive single-node/link fail/restore, separate R8 impact categories, loading/error states, and startup/request logs. M6d exposes topology, baseline/criticality and single-failure reports through read-only JSON endpoints. The application is local-only and unauthenticated.
 
 Dataset loading/validation and the merged model are implemented in M6a; baseline routing and utilization rankings in M6b; single failures and criticality in M6c; network/analysis JSON endpoints in M6d; the baseline map and findings in M6e; interactive fail/restore in M6f. Baseline and single-failure results are now shown by the frontend. Published-image acceptance remains pending frontend publication.
