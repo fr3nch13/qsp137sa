@@ -137,7 +137,7 @@ Decision recorded on 2026-10-23; the Dockerfile and devcontainer foundations pac
 - Use a devcontainer for development, built from an image defined by the project's Dockerfile.
 - Define development and production build targets in the same multi-stage Dockerfile. Both targets derive from a common base stage, sharing the runtime foundation and common dependencies rather than maintaining separate Dockerfiles.
 - Add development-only tools in the development target; do not include them in the production target. Production is a sibling of the development target, not downstream of it.
-- Adapt the shared-base pattern with only three stages: `base`, `development`, and `production`. Separate devcontainer and application-build stages add no value yet; introduce a build stage only when actual compilation or dependency installation requires one.
+- The current scaffold has `base`, `development`, and `production` stages. The approved bundled frontend design below adds a Node build stage for actual compilation while preserving the existing development and production targets.
 - Configure the devcontainer to build the `development` target, mount the workspace at `/app`, and run as `app`; production builds select the `production` target and copy application files directly into the image. The devcontainer uses the Dockerfile's long-running development command and aligns the `app` UID/GID with the host where supported so the bind-mounted workspace remains writable.
 - Keep devcontainer lifecycle hooks separate: `post_create.sh` handles setup after creation, while `post_start.sh` handles repeatable startup work. Adapt their contents to LinkScope rather than copying CakePHP-specific ownership, paths, or personal agent configuration.
 - The reference illustrates the container structure, not a requirement to adopt its PHP/Apache runtime, optional tools, credential mounts, or installation scripts.
@@ -148,7 +148,21 @@ Decision recorded on 2026-10-23; the Dockerfile and devcontainer foundations pac
 - Django 6.1.2 and TopoHub 1.5.1 are direct dependencies. TopoHub 1.5.1 does not declare NetworkX, which its SNDlib provider imports, so NetworkX 3.7 is also pinned directly. Gunicorn 26.2.0 serves `linkscope.wsgi:application` on `0.0.0.0:2158` in the production image, logging requests to stdout. Its unused control socket is disabled so it does not write under the root-owned application directory. The root page reports scaffold status only; network analysis and the frontend remain pending.
 - `.dockerignore` excludes local environments, secrets, Git metadata, and assignment/agent documentation from the build context.
 - The shared Docker stage overrides the base image's OCI title, description, URL, documentation, and source with LinkScope metadata. Image smoke tests verify the title and description on both targets; publishing a new image supplies the corrected description to GHCR.
-- Container orchestration remains to be selected. Container packaging does not itself select Kubernetes or a cloud platform.
+- Compose is the local published-image run path. Production orchestration is not selected; container packaging does not itself select Kubernetes or a cloud platform.
+
+### Bundled frontend and API decision
+
+Approved on 2026-10-27; implementation is pending. See the [architecture handoff](../docs/Quantum%20Sky%20Assignment%20Summary.md) and [implementation milestones](tasks/todo.md#bundled-frontend-and-api-milestones).
+
+- Keep one repository, one Dockerfile, and one deployed application container. React/TypeScript runs in the browser; its compiled HTML, JavaScript, CSS, and other assets are static files shipped with the Python application.
+- Retain Gunicorn in production with Django routing and an appropriate static-file mechanism; Gunicorn alone does not serve static files. No Apache, nginx, reverse proxy, CORS configuration, or separate frontend deployment is needed.
+- Serve React at `/` and the REST API at `/api` and its subpaths on port 2158. Use relative API URLs. Preserve explicit API errors and missing-asset responses rather than routing them into the frontend HTML fallback.
+- Add a Node frontend build stage and Node/npm tooling in the development target. The production runtime receives the compiled assets, not Node/npm. Preserve the workspace mount, development lifecycle hooks, runtime secret handling, and non-root production permissions.
+- Support `npm run build` and a build-watch command inside the devcontainer. Rebuilt assets are served by Django on `http://127.0.0.1:2158/`; manually refresh the browser. Do not add Vite, a separate frontend development server, or HMR. Select minimal build tooling and record exact working directories and commands when implemented; avoid stale asset caching in development.
+- Commit authored frontend source/assets, dependency manifests, the npm lockfile, and build configuration. Ignore `node_modules`, compiled bundles, and collected static output in Git. Docker/CI must build from source without relying on ignored workspace artifacts.
+- Keep the existing single application CI flow with no path filters, adding frontend lint, type checks, tests, and builds. Frontend-only edits rebuild the bundled image. Preserve existing branch/tag publishing rules and the Linux AMD64/emulation decision.
+- Compose continues to pull the published image; workspace edits are visible through the devcontainer, not through published-image Compose without rebuilding and publishing.
+- Future evolution, not current work: separate frontend (Node build/nginx runtime) and Django API images in the same repository/Compose project when independent releases or scaling justify it. Only then consider per-image path-filtered CI. If team ownership and release cadences diverge further, consider separate frontend/backend repositories plus an IaC/orchestration repository pinning environment image versions. Cross-repository API changes require explicit compatibility discipline.
 
 ### Django startup
 
