@@ -36,8 +36,11 @@ FROM base AS development
 COPY --from=node-toolchain /usr/local/bin/node /usr/local/bin/node
 COPY --from=node-toolchain /usr/local/lib/node_modules /usr/local/lib/node_modules
 
+# Chromium lets Marp export the slide deck (docs/slideshow) to PDF and PPTX.
+ENV CHROME_PATH=/usr/bin/chromium
+
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates curl gh git \
+    && apt-get install -y --no-install-recommends ca-certificates chromium curl gh git \
     && ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
     && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
     && rm -rf /var/lib/apt/lists/*

@@ -27,18 +27,21 @@ The author explicitly accepted this residual exposure of PDF author-name metadat
 
 Audience: an operations lead and engineers. Explain operational results first, then the engineering evidence. The assignment allows any order.
 
-| Slide | Assignment topic | Content and evidence to prepare | Status |
-|---|---|---|---|
-| 1 | Goal and scope | Team's three questions, delivered capabilities, and demonstration boundaries. | Scaffold only |
-| 2 | Findings: single points of failure | Critical nodes/links with numbers and the reason each is critical. | Analysis pending |
-| 3 | Findings: traffic dependence and outages | Five most utilized links, one node/link outage, undeliverable demands, failed endpoints, and overloads; include live fail/restore demo. | Analysis/UI pending |
-| 4 | Structure and design | Code organization, merged model, transit restrictions, and equal splitting across minimum-hop paths. Explain why. | Model/routing pending |
-| 5 | Interface and decision ownership | Backend/frontend contract, TypeScript UI, and decisions made by the author versus accepted from AI. | Contract/UI pending |
-| 6 | Setting up AI | Instructions provided before coding; demonstrate actual tests, linters, type checks, and hooks, distinguishing implemented checks from proposals. | Instructions, lint and tests available; inventory remaining checks |
-| 7 | Verification | Independently justified expected values, tests specified/written by the author, and evidence beyond AI assertions. | Infrastructure tests available; analysis verification pending |
-| 8 | Production concerns | All six concerns below: implemented/deferred, why, and first internal-release steps. | Track below |
-| 9 | Steering and ambiguity | Three to five concrete interventions; unclear requirements, questions asked, and how resolved. | Candidates below; author to confirm |
-| 10 | Delivery and time | Actual time spent, remaining limitations, next steps, and close for questions. | Time record pending |
+The deck is [linkscope-presentation.md](linkscope-presentation.md) (Marp, 11 slides). Its numbers come from the measured results below.
+
+| Slide | Assignment topic | Status |
+|---|---|---|
+| 1 | Goal and scope | Drafted |
+| 2 | Data and model | Drafted |
+| 3 | Findings: single points of failure | Drafted from measured M6c results |
+| 4 | Findings: top five and outages, live demo | Drafted; rehearse the demo |
+| 5 | Structure and design | Drafted |
+| 6 | Interface and decision ownership | Drafted; author to confirm the decided/accepted split |
+| 7 | Setting up AI | Drafted |
+| 8 | Verification | Drafted |
+| 9 | Production concerns | Drafted; two priorities: input validation and dependency/security checks |
+| 10 | Steering | Drafted; author-selected five |
+| 11 | Unclear items, time, next steps | Time spent pending |
 
 ## Implementation status and production concerns
 
@@ -163,19 +166,15 @@ These are proposals for evaluation, not implemented capabilities or additions to
 - **Authentication and perimeter protection:** Confirm the intended users and deployment exposure. Add authentication and authorization if shared access requires them; evaluate a Web Application Firewall (WAF), request rate limits, and denial-of-service (DoS/DDoS) protection if justified by the hosting environment and project scope. Rate limiting can reduce abusive requests and expensive analysis workloads; volumetric DDoS protection generally requires upstream hosting/CDN support. These controls supplement application protection but do not replace authentication or authorization.
 - **Per-image CI filtering after a service split:** Consider granular CI only with the future separate frontend/backend images described above, so each image builds when its inputs change. Keep the current bundled-image pipeline unfiltered. Any later filtering must cover shared dependencies/configuration, preserve release builds, and ensure the required `test` check reports a result rather than leaving branch protection waiting.
 
-## Steering examples to substantiate
+## Steering examples
 
-Confirm these against conversation history and commits before presenting. For each, show what AI proposed, what the author changed, why, and the resulting evidence.
+The full list is in [Agent Steering](../descision-notes.md#agent-steering). These five are on the slide, chosen by the author:
 
-| Candidate | AI output or initial behavior | Author direction and rationale | Evidence to collect |
-|---|---|---|---|
-| Container complexity | Proposed more stages than needed. | Reduce to base, development, and production; keep scope small. | Decision notes and Dockerfile history |
-| Home-directory layout | Workspace also used as the app user's home. | Separate persistent home from source workspace to avoid tool-state clutter. | Container configuration and migration history |
-| CI cost and branching | Included CI on pushes to dev. | Main pushes, PRs, and release tags only; skip fork runners to control budget. | Workflow changes and successful runs |
-| Release naming | Broad tag trigger. | Restrict releases to SemVer, with strict validation before builds. | Tag helper tests and workflow history |
-| Documentation audience | README included detailed implementation/production tracking. | Move interview detail here; keep README focused on use and link limitations. | Documentation diff |
-
-Do not attribute AI-written tests or decisions to the author without confirmation.
+1. Core application over infrastructure: M6 split into M6a-M6f with acceptance gates, KISS.
+2. CI triggers and budget: no `dev` push runs; main pushes, PRs, and SemVer tags only; forks blocked.
+3. Real Leaflet/OpenStreetMap map instead of the proposed SVG (`6908828`).
+4. Docker layout: base/dev/prod stages and a home directory separate from `/app`.
+5. Explicit `linux/amd64` instead of multi-platform publishing (`6dfde04`).
 
 ## Questions, ambiguities, and answers
 
@@ -183,9 +182,9 @@ Do not attribute AI-written tests or decisions to the author without confirmatio
 
 | Question / issue | Current answer or evidence | Status / next action |
 |---|---|---|
-| Where are single points of failure? | No analysis results yet. | Implement and verify numerical findings. |
-| Which links does traffic depend on most? | No utilization results yet. | Calculate and independently verify top five. |
-| What happens when a link or site fails? | No simulation results yet. | Verify undeliverable, failed-endpoint, and overload reports. |
+| Where are single points of failure? | Literal R7: all 37 nodes and 6 links are critical. Meaningful subset: HUB-EAST, Athens, Dublin, Warsaw, Hamburg, Berlin, L12, L26, and 4 single-homed access links. | Answered; confirm the R7 interpretation with the panel. |
+| Which links does traffic depend on most? | L12 71.01%, L3 68.40%, L26 62.13%, L30 58.81%, L13 50.63%. | Answered. |
+| What happens when a link or site fails? | All 92 single failures evaluated, e.g. L12 failure overloads L26 to 128.30%. | Answered; shown live in the demo. |
 | How should unavailable official SNDlib inputs be obtained? | Original endpoints failed; a third-party mirror was identified and checked against expected counts. | Resolved 2026-10-27: Quantum Sky approved proceeding with the mirror workaround. It is still not an official SNDlib distribution. |
 
 ### Practice questions (not questions already asked by the panel)
@@ -194,6 +193,7 @@ Do not attribute AI-written tests or decisions to the author without confirmatio
 - How do tests prove equal splitting and prevent endpoint nodes from forwarding transit traffic?
 - Where did expected values come from, and which were independently calculated?
 - What does green CI prove, and what does it not prove?
+- Which hooks does the AI have to pass? No local git hooks; the enforced gate is the CI `test` check required by `main` branch protection.
 - Which decisions did the author make, and which AI suggestions were accepted or rejected?
 - What would change before admitting internal users or deploying outside localhost?
 
