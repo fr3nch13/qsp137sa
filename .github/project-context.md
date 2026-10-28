@@ -4,6 +4,8 @@ This document describes the software product and its functional requirements. Th
 
 Presentation and interview preparation is tracked in [the interview preparation notes](../docs/slideshow/interview-preparation.md). Read and update that tracker when implementation status, production limitations, verification evidence, steering examples, or assignment clarifications change. It also contains the slide outline, panel-question log, demo checklist, and time record; it is not the final slide deck. Keep detailed interview material there rather than in the end-user README, and leave unverified findings or unrecorded time explicitly pending.
 
+The slide deck is [linkscope-presentation.md](../docs/slideshow/linkscope-presentation.md), written in Marp Markdown. Marp CLI is not a project dependency. Run `docs/slideshow/regenerate-presentation.sh` to export every Marp deck in that folder to PDF and PPTX next to its source. It runs Marp through `npx` and needs a local Chrome, Chromium, or Edge (set `CHROME_PATH` if the browser isn't detected, and `MARP_CLI_VERSION` to pin a release). The development image installs Chromium and sets `CHROME_PATH`, so the script works in the devcontainer after a rebuild.
+
 LinkScope is an application within Project 137, a division of Quantum Sky.
 
 **Important: Keep it small. We scoped it to a few hours on purpose.**
