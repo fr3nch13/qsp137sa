@@ -35,7 +35,11 @@
                 "davidanson.vscode-markdownlint",
                 "timonwong.shellcheck",
                 "yzhang.markdown-all-in-one"
-            ]
+            ],
+            "settings": {
+                "terminal.integrated.defaultProfile.linux": "bash"
+            }
+                
         }
     }
 }
