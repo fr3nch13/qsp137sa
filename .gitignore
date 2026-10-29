@@ -13,3 +13,7 @@ node_modules/
 !.devcontainer/devcontainer.json
 !.devcontainer/post_create.sh
 !.devcontainer/post_start.sh
+
+# Regenerated slide exports stay local; track their Markdown source instead.
+/docs/slideshow/*.pdf
+/docs/slideshow/*.pptx
