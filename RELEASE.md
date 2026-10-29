@@ -1,8 +1,21 @@
 <!--
 Release notes template for GitHub releases. Replace {{VERSION}} with the SemVer tag
-(for example 1.2.3, without a "v" prefix), then create the release, e.g.:
-  sed "s/{{VERSION}}/1.2.3/g" RELEASE.md > /tmp/notes.md
-  gh release create 1.2.3 --title "LinkScope 1.2.3" --notes-file /tmp/notes.md
+(for example 1.2.3, without a "v" prefix) and {{RELEASE_NOTES}} with the release
+notes text from a file. Then create the release, e.g.:
+
+  VERSION=1.2.3
+  RELEASE_NOTES_FILE=/path/to/release-notes.md
+  python - "$VERSION" "$RELEASE_NOTES_FILE" <<'PY'
+from pathlib import Path
+import sys
+
+version, notes_file = sys.argv[1:]
+template = Path("RELEASE.md").read_text()
+notes = Path(notes_file).read_text().rstrip()
+rendered = template.replace("{{VERSION}}", version).replace("{{RELEASE_NOTES}}", notes)
+Path("/tmp/notes.md").write_text(rendered)
+PY
+  gh release create "$VERSION" --title "LinkScope $VERSION" --notes-file /tmp/notes.md
 -->
 
 ## Overview
@@ -13,6 +26,10 @@ This initial release answers three questions:
 - Where does the network have single points of failure?
 - Which links does the traffic depend on most?
 - What happens when a link or site goes down?
+
+## {{VERSION}} Notes
+
+{{RELEASE_NOTES}}
 
 ## Features
 
