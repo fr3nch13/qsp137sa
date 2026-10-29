@@ -1,21 +1,9 @@
 <!--
-Release notes template for GitHub releases. Replace {{VERSION}} with the SemVer tag
-(for example 1.2.3, without a "v" prefix) and {{RELEASE_NOTES}} with the release
-notes text from a file. Then create the release, e.g.:
-
-  VERSION=1.2.3
-  RELEASE_NOTES_FILE=/path/to/release-notes.md
-  python - "$VERSION" "$RELEASE_NOTES_FILE" <<'PY'
-from pathlib import Path
-import sys
-
-version, notes_file = sys.argv[1:]
-template = Path("RELEASE.md").read_text()
-notes = Path(notes_file).read_text().rstrip()
-rendered = template.replace("{{VERSION}}", version).replace("{{RELEASE_NOTES}}", notes)
-Path("/tmp/notes.md").write_text(rendered)
-PY
-  gh release create "$VERSION" --title "LinkScope $VERSION" --notes-file /tmp/notes.md
+Release notes template for GitHub releases. {{VERSION}} is the SemVer tag (for
+example 1.2.3, without a "v" prefix) and {{RELEASE_NOTES}} is the version-specific
+notes text. Render it with .github/ci/generate_release.py; see
+.github/copilot-instructions.md for the full release steps. This comment is
+removed from the rendered notes.
 -->
 
 ## Overview

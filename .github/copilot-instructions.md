@@ -16,7 +16,50 @@ You are a senior full-stack developer and coding agent. Your goal is to provide 
 
 ## Available tools
 
-TBD
+### Release notes: `.github/ci/generate_release.py`
+
+Renders GitHub release notes from the `RELEASE.md` template in the repository root. Never create a tag or release unless the user explicitly asks for one; propose the title and notes for review first.
+
+1. Write the version-specific notes (what changed since the previous tag, based on `git log` and `git diff <previous-tag> origin/main`) to a temporary Markdown file outside the repository.
+2. Render the notes. The version must be SemVer without a `v` prefix; the script rejects invalid versions, empty notes, and unfilled `{{...}}` placeholders, and strips the template's instruction comment:
+
+   ```sh
+   python .github/ci/generate_release.py --version 1.2.3 --notes-file /tmp/release-notes.md --output /tmp/notes.md
+   ```
+
+3. Review `/tmp/notes.md`, then create the release and tag. Use the full commit SHA for `--target`, because GitHub rejects short SHAs. Titles follow `LinkScope <version> — <short summary>`. Add `--prerelease` while the app remains a local-only demonstration:
+
+   ```sh
+   gh release create 1.2.3 --target "$(git rev-parse origin/main)" \
+     --title "LinkScope 1.2.3 — <short summary>" --notes-file /tmp/notes.md --prerelease
+   ```
+
+4. The tag push triggers CI, which publishes `ghcr.io/fr3nch13/qsp137sa:<version>`. Confirm that run succeeds. Never move or recreate an existing version tag.
+
+For a future CI job, every option can come from the environment instead: `RELEASE_VERSION` (or `GITHUB_REF_NAME` on tag runs), `RELEASE_NOTES_FILE` (`-` reads stdin), `RELEASE_OUTPUT`, and `RELEASE_TEMPLATE`. When `GITHUB_OUTPUT` is set it writes the `version` and `notes_file` step outputs, and under GitHub Actions errors become `::error` annotations. Exit status is 0 on success, 1 on invalid input, and 2 on usage errors. For example, a job on a tag push that publishes the release for the pushed tag (`release-notes.md` is a committed notes file, and `RELEASE_SUMMARY` is the title summary):
+
+```yaml
+release-notes:
+  runs-on: ubuntu-latest
+  permissions:
+    contents: write
+  env:
+    RELEASE_SUMMARY: Documentation and devcontainer updates
+  steps:
+    - uses: actions/checkout@v7
+    - id: notes
+      run: python .github/ci/generate_release.py --notes-file release-notes.md --output "$RUNNER_TEMP/notes.md"
+    - run: >-
+        gh release create "$VERSION"
+        --title "LinkScope $VERSION — $RELEASE_SUMMARY"
+        --notes-file "$NOTES_FILE" --prerelease
+      env:
+        GH_TOKEN: ${{ github.token }}
+        VERSION: ${{ steps.notes.outputs.version }}
+        NOTES_FILE: ${{ steps.notes.outputs.notes_file }}
+```
+
+Run its tests with `uv run --locked python -m unittest discover -s .github/ci -v`.
 
 ## Development practices
 
